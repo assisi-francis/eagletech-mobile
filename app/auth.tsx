@@ -8,6 +8,7 @@ export default function AuthScreen() {
   const [loadingType, setLoadingType] = useState<'signin' | 'signup' | null>(null);
 
   const signInWithEmail = async () => {
+    if (!email || !password) return Alert.alert('Error', 'Please enter both email and password');
     setLoadingType('signin');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) Alert.alert('Error', error.message);
@@ -15,6 +16,7 @@ export default function AuthScreen() {
   };
 
   const signUpWithEmail = async () => {
+    if (!email || !password) return Alert.alert('Error', 'Please enter both email and password');
     setLoadingType('signup');
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) Alert.alert('Error', error.message);
