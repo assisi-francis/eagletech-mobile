@@ -103,7 +103,7 @@ export default function ProductDetailScreen() {
                 <View style={styles.specRow}><Text style={styles.specLabel}>Category</Text><Text style={styles.specValue}>{product.category || 'Electronics'}</Text></View>
                 <View style={styles.specRow}><Text style={styles.specLabel}>Stock</Text><Text style={styles.specValueSuccess}>In Stock ({product.stock_quantity || 10} available)</Text></View>
               </View>
-            ) : (
+            ) : activeTab === 'includes' ? (
               <View>
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>{product.title || product.name}</Text></View>
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>100W USB-C Power Adapter</Text></View>
@@ -132,7 +132,7 @@ export default function ProductDetailScreen() {
                   ))
                 )}
               </View>
-            )}
+            ) : null}
           </View>
         </View>
       </ScrollView>
