@@ -23,17 +23,33 @@ export default function ShopScreen() {
 
   const renderProduct = ({ item }: { item: any }) => (
     <View style={styles.card}>
-      <Image source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={2}>{item.title || item.name}</Text>
-        <Text style={styles.price}>₦{item.price?.toLocaleString()}</Text>
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
+        {item.brand && (
+          <View style={styles.brandBadge}>
+            <Text style={styles.brandText}>{item.brand}</Text>
+          </View>
+        )}
       </View>
-      <TouchableOpacity style={styles.addButton} onPress={() => {
-        addItem(item, 1);
-        Alert.alert('Added', `${item.title || item.name} added to cart`);
-      }}>
-        <ShoppingCart color="#fff" size={18} />
-      </TouchableOpacity>
+      
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={1}>{item.title || item.name}</Text>
+        <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+        
+        <View style={styles.footerRow}>
+          <View>
+            <Text style={styles.priceLabel}>PRICE</Text>
+            <Text style={styles.price}>₦{item.price?.toLocaleString()}</Text>
+          </View>
+          
+          <TouchableOpacity style={styles.addButton} onPress={() => {
+            addItem(item, 1);
+            Alert.alert('Added', `${item.title || item.name} added to cart`);
+          }}>
+            <ShoppingCart color="#fff" size={20} />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
@@ -46,8 +62,7 @@ export default function ShopScreen() {
         keyExtractor={(i) => i.id}
         renderItem={renderProduct}
         contentContainerStyle={styles.list}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
+        numColumns={1}
       />
     </View>
   );
@@ -56,12 +71,17 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 10 },
-  row: { justifyContent: 'space-between' },
-  card: { width: '48%', backgroundColor: '#fff', borderRadius: 12, padding: 10, marginBottom: 15, position: 'relative' },
-  image: { width: '100%', height: 120, borderRadius: 8, backgroundColor: '#f1f5f9', resizeMode: 'cover' },
-  info: { marginTop: 10 },
-  name: { fontSize: 14, fontWeight: '600', color: '#0f172a' },
-  price: { fontSize: 14, color: '#3b82f6', fontWeight: 'bold', marginTop: 4 },
-  addButton: { position: 'absolute', bottom: 10, right: 10, backgroundColor: '#0f172a', borderRadius: 20, padding: 6 },
+  list: { padding: 16 },
+  card: { width: '100%', backgroundColor: '#fff', borderRadius: 24, padding: 12, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3, borderWidth: 1, borderColor: '#f1f5f9' },
+  imageContainer: { width: '100%', aspectRatio: 4/3, borderRadius: 16, backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' },
+  image: { width: '100%', height: '100%', resizeMode: 'cover' },
+  brandBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  brandText: { fontSize: 12, fontWeight: 'bold', color: '#000' },
+  info: { marginTop: 16, paddingHorizontal: 8 },
+  name: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 6 },
+  description: { fontSize: 14, color: '#64748b', lineHeight: 20, marginBottom: 20 },
+  footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 4 },
+  priceLabel: { fontSize: 11, fontWeight: 'bold', color: '#94a3b8', letterSpacing: 1, marginBottom: 2 },
+  price: { fontSize: 22, fontWeight: '900', color: '#0f172a' },
+  addButton: { backgroundColor: '#0f172a', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
 });
