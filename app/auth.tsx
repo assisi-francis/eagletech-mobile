@@ -94,9 +94,17 @@ export default function AuthScreen() {
           disabled={loading}
         >
           <Text style={styles.toggleButtonText}>
-            {view === 'login' 
-              ? "Don't have an account? Sign up" 
-              : "Already have an account? Sign in"}
+            {view === 'login' ? (
+              <>
+                <Text style={styles.toggleTextMuted}>Don't have an account? </Text>
+                <Text style={styles.toggleTextHighlight}>Sign up</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.toggleTextMuted}>Already have an account? </Text>
+                <Text style={styles.toggleTextHighlight}>Sign in</Text>
+              </>
+            )}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -116,5 +124,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#3b82f6', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   toggleButton: { padding: 16, alignItems: 'center' },
-  toggleButtonText: { color: '#3b82f6', fontWeight: '600', fontSize: 15 },
+  toggleButtonText: { fontSize: 15 },
+  toggleTextMuted: { color: '#64748b', fontWeight: '500' },
+  toggleTextHighlight: { color: '#3b82f6', fontWeight: '700' },
 });
