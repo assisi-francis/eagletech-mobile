@@ -82,7 +82,7 @@ export default function AuthScreen() {
 
         <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color="#f8fafc" />
           ) : (
             <Text style={styles.buttonText}>{view === 'login' ? 'Sign In' : 'Create Account'}</Text>
           )}
@@ -121,10 +121,10 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 10, fontWeight: 'bold', color: '#64748b', letterSpacing: 2, marginTop: 2 },
   inputContainer: { gap: 12, marginBottom: 24 },
   input: { backgroundColor: '#fff', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 16 },
-  button: { backgroundColor: '#3b82f6', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
+  button: { backgroundColor: '#0f172a', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   toggleButton: { padding: 16, alignItems: 'center' },
   toggleButtonText: { fontSize: 15 },
   toggleTextMuted: { color: '#64748b', fontWeight: '500' },
-  toggleTextHighlight: { color: '#3b82f6', fontWeight: '700' },
+  toggleTextHighlight: { color: '#0f172a', fontWeight: '700' },
 });
