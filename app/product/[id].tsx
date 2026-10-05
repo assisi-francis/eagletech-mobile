@@ -2,29 +2,27 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { mockProducts } from '../../lib/data';
+import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
-import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check } from 'lucide-react-native';
+import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star } from 'lucide-react-native';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const addItem = useCartStore(state => state.addItem);
-  
-  // Find product by slug or id
-  const product = mockProducts.find(p => p.slug === id || p.id === id);
-
-  if (!product) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>Product not found</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   const [activeTab, setActiveTab] = React.useState('specs');
+  const [reviews, setReviews] = React.useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchReviews = async () => {
+      const slug = id as string;
+      const { data, error } = await supabase.from('reviews').select('*').eq('product_slug', slug).order('created_at', { ascending: false });
+      if (data) setReviews(data);
+      setLoadingReviews(false);
+    };
+    fetchReviews();
+  }, [id]);
 
   return (
     <View style={styles.container}>
@@ -93,6 +91,9 @@ export default function ProductDetailScreen() {
             <TouchableOpacity onPress={() => setActiveTab('includes')} style={[styles.tab, activeTab === 'includes' && styles.activeTab]}>
               <Text style={[styles.tabText, activeTab === 'includes' && styles.activeTabText]}>IN THE BOX</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => setActiveTab('reviews')} style={[styles.tab, activeTab === 'reviews' && styles.activeTab]}>
+              <Text style={[styles.tabText, activeTab === 'reviews' && styles.activeTabText]}>REVIEWS (${reviews.length})</Text>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.tabContent}>
@@ -107,6 +108,29 @@ export default function ProductDetailScreen() {
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>{product.title || product.name}</Text></View>
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>100W USB-C Power Adapter</Text></View>
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>Quick Start Guide</Text></View>
+              </View>
+            ) : (
+              <View>
+                {loadingReviews ? (
+                  <Text style={styles.emptyReviews}>Loading reviews...</Text>
+                ) : reviews.length === 0 ? (
+                  <Text style={styles.emptyReviews}>No reviews yet. Be the first to review!</Text>
+                ) : (
+                  reviews.map((r, i) => (
+                    <View key={i} style={styles.reviewCard}>
+                      <View style={styles.reviewHeader}>
+                        <Text style={styles.reviewAuthor}>{r.user_name}</Text>
+                        <View style={styles.starsRow}>
+                          {[...Array(5)].map((_, idx) => (
+                            <Star key={idx} color={idx < r.rating ? "#eab308" : "#e2e8f0"} fill={idx < r.rating ? "#eab308" : "transparent"} size={14} />
+                          ))}
+                        </View>
+                      </View>
+                      <Text style={styles.reviewComment}>{r.comment}</Text>
+                      <Text style={styles.reviewDate}>{new Date(r.created_at).toLocaleDateString()}</Text>
+                    </View>
+                  ))
+                )}
               </View>
             )}
           </View>
@@ -176,6 +200,14 @@ const styles = StyleSheet.create({
   
   includesRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   includesText: { fontSize: 14, fontWeight: '500', color: '#0f172a' },
+  
+  emptyReviews: { fontSize: 14, color: '#64748b', fontStyle: 'italic', marginTop: 12 },
+  reviewCard: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  reviewAuthor: { fontSize: 15, fontWeight: 'bold', color: '#0f172a' },
+  starsRow: { flexDirection: 'row', gap: 2 },
+  reviewComment: { fontSize: 14, color: '#475569', lineHeight: 22, marginBottom: 8 },
+  reviewDate: { fontSize: 12, color: '#94a3b8' },
   
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   addToCartBtn: { backgroundColor: '#0f172a', flexDirection: 'row', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
