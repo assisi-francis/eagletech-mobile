@@ -43,7 +43,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.replace('/auth');
+    router.replace('/(tabs)'); // Go back to shop instead of auth
   };
 
   const handleConfirmReceipt = async (orderId: string) => {

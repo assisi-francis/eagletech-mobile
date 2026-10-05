@@ -47,13 +47,12 @@ export default function RootLayout() {
 
     const inAuthScreen = segments[0] === 'auth';
 
-    if (!session && !inAuthScreen) {
-      // If not logged in and trying to access ANY protected route, send to auth
-      router.replace('/auth');
-    } else if (session && inAuthScreen) {
+    if (session && inAuthScreen) {
       // If logged in and trying to access the auth screen, send to tabs
       router.replace('/(tabs)');
     }
+    // We no longer globally force users out if they aren't signed in!
+    // They can browse the store anonymously just like the web app.
   }, [session, loading, segments]);
 
   if (loading) {
