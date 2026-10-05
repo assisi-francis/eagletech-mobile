@@ -3,28 +3,41 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import { supabase } from '../lib/supabase';
 
 export default function AuthScreen() {
+  const [view, setView] = useState<'login' | 'signup'>('login');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loadingType, setLoadingType] = useState<'signin' | 'signup' | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const signInWithEmail = async () => {
-    if (!email || !password) return Alert.alert('Error', 'Please enter both email and password');
-    setLoadingType('signin');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) Alert.alert('Error', error.message);
-    setLoadingType(null);
+  const handleAuth = async () => {
+    if (!email || !password) return Alert.alert('Error', 'Please enter email and password');
+    
+    setLoading(true);
+    
+    if (view === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) Alert.alert('Error', error.message);
+    } else {
+      if (!fullName) {
+        setLoading(false);
+        return Alert.alert('Error', 'Please enter your full name');
+      }
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          }
+        }
+      });
+      
+      if (error) Alert.alert('Error', error.message);
+    }
+    setLoading(false);
   };
 
-  const signUpWithEmail = async () => {
-    if (!email || !password) return Alert.alert('Error', 'Please enter both email and password');
-    setLoadingType('signup');
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) Alert.alert('Error', error.message);
-    // Removed annoying alert since auto-confirm is on
-    setLoadingType(null);
-  };
-
-  
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -38,14 +51,25 @@ export default function AuthScreen() {
         </View>
 
         <View style={styles.inputContainer}>
+          {view === 'signup' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              onChangeText={setFullName}
+              value={fullName}
+              autoCapitalize="words"
+            />
+          )}
+          
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Email address"
             onChangeText={setEmail}
             value={email}
             autoCapitalize="none"
             keyboardType="email-address"
           />
+          
           <TextInput
             style={styles.input}
             placeholder="Password"
@@ -56,19 +80,29 @@ export default function AuthScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loadingType !== null}>
-          {loadingType === 'signin' ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
+        <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>{view === 'login' ? 'Sign In' : 'Create Account'}</Text>
+          )}
         </TouchableOpacity>
         
-        <TouchableOpacity style={[styles.button, styles.buttonOutline]} onPress={signUpWithEmail} disabled={loadingType !== null}>
-          {loadingType === 'signup' ? <ActivityIndicator color="#3b82f6" /> : <Text style={styles.buttonOutlineText}>Sign Up</Text>}
+        <TouchableOpacity 
+          style={styles.toggleButton} 
+          onPress={() => setView(view === 'login' ? 'signup' : 'login')} 
+          disabled={loading}
+        >
+          <Text style={styles.toggleButtonText}>
+            {view === 'login' 
+              ? "Don't have an account? Sign up" 
+              : "Already have an account? Sign in"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
@@ -81,8 +115,6 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#fff', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 16 },
   button: { backgroundColor: '#3b82f6', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  buttonOutline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#3b82f6' },
   toggleButton: { padding: 16, alignItems: 'center' },
   toggleButtonText: { color: '#3b82f6', fontWeight: '600', fontSize: 15 },
 });
-
