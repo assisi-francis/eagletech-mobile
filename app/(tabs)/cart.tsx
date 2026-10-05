@@ -12,9 +12,9 @@ export default function CartScreen() {
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
-      <Image source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
+      <Image source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
       <View style={styles.details}>
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.name} numberOfLines={1}>{item.title || item.name}</Text>
         <Text style={styles.price}>₦{item.price.toLocaleString()}</Text>
         <View style={styles.controls}>
           <TouchableOpacity onPress={() => updateQuantity(item.id, Math.max(1, item.cartQuantity - 1))} style={styles.btn}>

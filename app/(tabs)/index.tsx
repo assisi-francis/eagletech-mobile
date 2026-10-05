@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useCartStore } from '../../store/useCartStore';
-import { supabase } from '../../lib/supabase';
+import { mockProducts } from '../../lib/data';
 import { Plus } from 'lucide-react-native';
 
 export default function ShopScreen() {
@@ -14,21 +14,23 @@ export default function ShopScreen() {
   }, []);
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase.from('products').select('*');
-    if (data) setProducts(data);
-    setLoading(false);
+    // Simulate network delay to match web app loading experience
+    setTimeout(() => {
+      setProducts(mockProducts);
+      setLoading(false);
+    }, 500);
   };
 
   const renderProduct = ({ item }: { item: any }) => (
     <View style={styles.card}>
-      <Image source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
+      <Image source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.name} numberOfLines={2}>{item.title || item.name}</Text>
         <Text style={styles.price}>₦{item.price?.toLocaleString()}</Text>
       </View>
       <TouchableOpacity style={styles.addButton} onPress={() => {
         addItem(item, 1);
-        Alert.alert('Added', `${item.name} added to cart`);
+        Alert.alert('Added', `${item.title || item.name} added to cart`);
       }}>
         <Plus color="#fff" size={20} />
       </TouchableOpacity>
