@@ -24,13 +24,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return;
 
-    const inTabsGroup = segments[0] === '(tabs)';
+    const inAuthScreen = segments[0] === 'auth';
 
-    if (!session && inTabsGroup) {
-      // Redirect to authentication screen if not logged in
+    if (!session && !inAuthScreen) {
+      // If not logged in and trying to access ANY protected route, send to auth
       router.replace('/auth');
-    } else if (session && !inTabsGroup) {
-      // Redirect to the main app if logged in
+    } else if (session && inAuthScreen) {
+      // If logged in and trying to access the auth screen, send to tabs
       router.replace('/(tabs)');
     }
   }, [session, loading, segments]);
