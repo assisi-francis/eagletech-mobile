@@ -24,6 +24,19 @@ export default function ProductDetailScreen() {
     fetchReviews();
   }, [id]);
 
+  const product = mockProducts.find(p => p.slug === id || p.id === id);
+
+  if (!product) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>Product not found</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
