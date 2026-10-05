@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { mockProducts } from '../../lib/data';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
-import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star } from 'lucide-react-native';
+import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star, Heart } from 'lucide-react-native';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -13,6 +13,43 @@ export default function ProductDetailScreen() {
   const [activeTab, setActiveTab] = React.useState('specs');
   const [reviews, setReviews] = React.useState<any[]>([]);
   const [loadingReviews, setLoadingReviews] = React.useState(true);
+  
+  const [isSaved, setIsSaved] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [user, setUser] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        checkWishlist(session.user.id);
+      }
+    });
+  }, []);
+
+  const checkWishlist = async (userId: string) => {
+    const slug = id as string;
+    const { data } = await supabase.from('wishlist').select('id').match({ user_id: userId, product_slug: slug }).single();
+    if (data) setIsSaved(true);
+  };
+
+  const handleSaveForLater = async () => {
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to save products to your wishlist.');
+      return;
+    }
+    setSaving(true);
+    const slug = id as string;
+    
+    if (isSaved) {
+      await supabase.from('wishlist').delete().match({ user_id: user.id, product_slug: slug });
+      setIsSaved(false);
+    } else {
+      await supabase.from('wishlist').insert({ user_id: user.id, product_slug: slug });
+      setIsSaved(true);
+    }
+    setSaving(false);
+  };
 
   React.useEffect(() => {
     const fetchReviews = async () => {
@@ -59,6 +96,17 @@ export default function ProductDetailScreen() {
               <Text style={styles.brandTextAbsolute}>{product.brand}</Text>
             </View>
           )}
+          <TouchableOpacity 
+            style={styles.heartBtn} 
+            onPress={handleSaveForLater} 
+            disabled={saving}
+          >
+            <Heart 
+              color={isSaved ? "#ef4444" : "#64748b"} 
+              fill={isSaved ? "#ef4444" : "transparent"} 
+              size={24} 
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.detailsContainer}>
@@ -183,6 +231,7 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: '100%', resizeMode: 'cover' },
   brandBadgeAbsolute: { position: 'absolute', top: 20, left: 20, backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   brandTextAbsolute: { fontSize: 12, fontWeight: 'bold', color: '#000' },
+  heartBtn: { position: 'absolute', top: 16, right: 16, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   
   detailsContainer: { padding: 20, backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30, marginTop: -30 },
   title: { fontSize: 26, fontWeight: '900', color: '#0f172a', marginBottom: 12, lineHeight: 32 },
