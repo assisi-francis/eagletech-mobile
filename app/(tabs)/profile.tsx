@@ -175,19 +175,6 @@ export default function ProfileScreen() {
               <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString()}</Text>
             </View>
 
-            <View style={styles.orderItems}>
-              {order.items.slice(0, 3).map((item: any, idx: number) => (
-                <View key={idx} style={styles.orderItemRow}>
-                  <Text style={styles.orderItemQty}>{item.quantity}x</Text>
-                  <Text style={styles.orderItemName} numberOfLines={1}>{item.title || item.name}</Text>
-                  <Text style={styles.orderItemPrice}>₦{(item.price * item.quantity).toLocaleString()}</Text>
-                </View>
-              ))}
-              {order.items.length > 3 && (
-                <Text style={styles.moreItems}>+ {order.items.length - 3} more items</Text>
-              )}
-            </View>
-
             {order.order_status === 'SHIPPED' && (
               <TouchableOpacity 
                 style={styles.confirmBtn}
