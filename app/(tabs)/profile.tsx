@@ -4,11 +4,12 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { Mail, Calendar, Fingerprint, LogOut, Package, Clock, CheckCircle2, Heart } from 'lucide-react-native';
 import { mockProducts } from '../../lib/data';
+import { useWishlistStore } from '../../store/useWishlistStore';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
-  const [wishlist, setWishlist] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -35,17 +36,7 @@ export default function ProfileScreen() {
       
     if (ordersData) setOrders(ordersData);
 
-    // Fetch Wishlist
-    const { data: wishlistData } = await supabase
-      .from('wishlist')
-      .select('product_slug')
-      .eq('user_id', currentUser.id);
 
-    if (wishlistData) {
-      const savedSlugs = wishlistData.map(w => w.product_slug);
-      const savedProducts = mockProducts.filter(p => savedSlugs.includes(p.slug));
-      setWishlist(savedProducts);
-    }
     
     setLoading(false);
   };
@@ -69,6 +60,9 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to confirm delivery');
     }
   };
+
+  const wishlistItems = useWishlistStore((state) => state.items);
+  const wishlist = mockProducts.filter(p => wishlistItems.includes(p.slug));
 
   if (loading) {
     return (

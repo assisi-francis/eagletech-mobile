@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { mockProducts } from '../../lib/data';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
+import { useWishlistStore } from '../../store/useWishlistStore';
 import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star, Heart } from 'lucide-react-native';
 
 export default function ProductDetailScreen() {
@@ -14,40 +15,20 @@ export default function ProductDetailScreen() {
   const [reviews, setReviews] = React.useState<any[]>([]);
   const [loadingReviews, setLoadingReviews] = React.useState(true);
   
-  const [isSaved, setIsSaved] = React.useState(false);
+  const { items: wishlistItems, toggleWishlist } = useWishlistStore();
+  const slug = id as string;
+  const isSaved = wishlistItems.includes(slug);
   const [saving, setSaving] = React.useState(false);
-  const [user, setUser] = React.useState<any>(null);
-
-  React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        checkWishlist(session.user.id);
-      }
-    });
-  }, []);
-
-  const checkWishlist = async (userId: string) => {
-    const slug = id as string;
-    const { data } = await supabase.from('wishlist').select('id').match({ user_id: userId, product_slug: slug }).single();
-    if (data) setIsSaved(true);
-  };
 
   const handleSaveForLater = async () => {
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
       Alert.alert('Sign In Required', 'Please sign in to save products to your wishlist.');
+      router.push('/auth');
       return;
     }
     setSaving(true);
-    const slug = id as string;
-    
-    if (isSaved) {
-      await supabase.from('wishlist').delete().match({ user_id: user.id, product_slug: slug });
-      setIsSaved(false);
-    } else {
-      await supabase.from('wishlist').insert({ user_id: user.id, product_slug: slug });
-      setIsSaved(true);
-    }
+    await toggleWishlist(slug, session.user.id);
     setSaving(false);
   };
 

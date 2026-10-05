@@ -4,10 +4,31 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { View, ActivityIndicator } from 'react-native';
 import { PaystackProvider } from 'react-native-paystack-webview';
+import { useWishlistStore } from '../store/useWishlistStore';
+import { supabase } from '../lib/supabase';
 
 export default function RootLayout() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        useWishlistStore.getState().fetchWishlist(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        useWishlistStore.getState().fetchWishlist(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        useWishlistStore.getState().clearWishlist();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const segments = useSegments();
   const router = useRouter();
 
