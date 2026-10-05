@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useCartStore } from '../../store/useCartStore';
 import { mockProducts } from '../../lib/data';
-import { Plus } from 'lucide-react-native';
+import { ShoppingCart } from 'lucide-react-native';
 
 export default function ShopScreen() {
   const addItem = useCartStore(state => state.addItem);
@@ -32,7 +32,7 @@ export default function ShopScreen() {
         addItem(item, 1);
         Alert.alert('Added', `${item.title || item.name} added to cart`);
       }}>
-        <Plus color="#fff" size={20} />
+        <ShoppingCart color="#fff" size={18} />
       </TouchableOpacity>
     </View>
   );
