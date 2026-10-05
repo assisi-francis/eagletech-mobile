@@ -109,7 +109,7 @@ export default function ProductDetailScreen() {
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>100W USB-C Power Adapter</Text></View>
                 <View style={styles.includesRow}><Check color="#0f172a" size={18} style={{marginRight: 8}}/><Text style={styles.includesText}>Quick Start Guide</Text></View>
               </View>
-            ) : (
+            ) : activeTab === 'reviews' ? (
               <View>
                 {loadingReviews ? (
                   <Text style={styles.emptyReviews}>Loading reviews...</Text>
