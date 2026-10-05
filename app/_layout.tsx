@@ -5,7 +5,6 @@ import { supabase } from '../lib/supabase';
 import { View, ActivityIndicator } from 'react-native';
 import { PaystackProvider } from 'react-native-paystack-webview';
 import { useWishlistStore } from '../store/useWishlistStore';
-import { supabase } from '../lib/supabase';
 
 export default function RootLayout() {
   const [session, setSession] = useState<any>(null);
