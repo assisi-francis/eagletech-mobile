@@ -53,7 +53,6 @@ export default function CartScreen() {
       email: formData.email || 'customer@eagletech.com',
       amount: finalTotal, // amount is in Naira for react-native-paystack-webview v5 (sometimes)
       reference: `TXN_${new Date().getTime()}`,
-      channels: ['card', 'bank', 'ussd', 'qr', 'mobile_money', 'bank_transfer'],
       onSuccess: (res: any) => {
         clearCart();
         Alert.alert('Success!', `Payment successful! Ref: ${res.transactionRef?.reference || res.reference}`);
