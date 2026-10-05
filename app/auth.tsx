@@ -5,21 +5,21 @@ import { supabase } from '../lib/supabase';
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState<'signin' | 'signup' | null>(null);
 
   const signInWithEmail = async () => {
-    setLoading(true);
+    setLoadingType('signin');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) Alert.alert('Error', error.message);
-    setLoading(false);
+    setLoadingType(null);
   };
 
   const signUpWithEmail = async () => {
-    setLoading(true);
+    setLoadingType('signup');
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) Alert.alert('Error', error.message);
-    else Alert.alert('Success', 'Check your email for the confirmation link!');
-    setLoading(false);
+    // Removed annoying alert since auto-confirm is on
+    setLoadingType(null);
   };
 
   
@@ -54,12 +54,12 @@ export default function AuthScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
+        <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loadingType !== null}>
+          {loadingType === 'signin' ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
         </TouchableOpacity>
         
-        <TouchableOpacity style={[styles.button, styles.buttonOutline]} onPress={signUpWithEmail} disabled={loading}>
-          <Text style={styles.buttonOutlineText}>Sign Up</Text>
+        <TouchableOpacity style={[styles.button, styles.buttonOutline]} onPress={signUpWithEmail} disabled={loadingType !== null}>
+          {loadingType === 'signup' ? <ActivityIndicator color="#3b82f6" /> : <Text style={styles.buttonOutlineText}>Sign Up</Text>}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
