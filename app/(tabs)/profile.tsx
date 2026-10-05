@@ -22,7 +22,8 @@ export default function ProfileScreen() {
     const currentUser = session?.user;
     
     if (!currentUser) {
-      router.replace('/auth');
+      setUser(null);
+      setLoading(false);
       return;
     }
     setUser(currentUser);
@@ -43,7 +44,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.replace('/(tabs)'); // Go back to shop instead of auth
+    setUser(null);
   };
 
   const handleConfirmReceipt = async (orderId: string) => {
@@ -72,7 +73,25 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f8fafc', padding: 20, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
+          <Fingerprint color="#64748b" size={40} />
+        </View>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#0f172a', marginBottom: 8, textAlign: 'center' }}>Welcome to EagleTech</Text>
+        <Text style={{ fontSize: 16, color: '#64748b', textAlign: 'center', marginBottom: 32, paddingHorizontal: 20 }}>
+          Sign in to track your orders, access your wishlist, and experience faster checkouts.
+        </Text>
+        <TouchableOpacity 
+          style={{ backgroundColor: '#3b82f6', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center', shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5, marginBottom: 16 }}
+          onPress={() => router.push('/auth')}
+        >
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>Sign In / Register</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const joinDate = new Date(user.created_at).toLocaleDateString('en-US', {
     month: 'long',
