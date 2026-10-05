@@ -105,7 +105,7 @@ export default function ProductDetailScreen() {
               <Text style={[styles.tabText, activeTab === 'includes' && styles.activeTabText]}>IN THE BOX</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setActiveTab('reviews')} style={[styles.tab, activeTab === 'reviews' && styles.activeTab]}>
-              <Text style={[styles.tabText, activeTab === 'reviews' && styles.activeTabText]}>REVIEWS (${reviews.length})</Text>
+              <Text style={[styles.tabText, activeTab === 'reviews' && styles.activeTabText]}>REVIEWS ({reviews.length})</Text>
             </TouchableOpacity>
           </View>
           
