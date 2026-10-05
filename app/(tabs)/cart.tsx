@@ -51,7 +51,7 @@ export default function CartScreen() {
 
     popup.checkout({
       email: formData.email || 'customer@eagletech.com',
-      amount: finalTotal,
+      amount: finalTotal, // amount is in Naira for react-native-paystack-webview v5 (sometimes)
       reference: `TXN_${new Date().getTime()}`,
       onSuccess: (res: any) => {
         clearCart();

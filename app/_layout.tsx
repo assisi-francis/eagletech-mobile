@@ -45,7 +45,7 @@ export default function RootLayout() {
   }
 
   return (
-    <PaystackProvider publicKey="pk_test_placeholder">
+    <PaystackProvider publicKey="pk_test_945f807df0628c05449526c4c62bd7e882318499">
       <Stack screenOptions={{ headerShown: false }} />
       <StatusBar style="auto" />
     </PaystackProvider>
