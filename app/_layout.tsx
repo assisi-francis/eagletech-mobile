@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { View, ActivityIndicator } from 'react-native';
+import { PaystackProvider } from 'react-native-paystack-webview';
 
 export default function RootLayout() {
   const [session, setSession] = useState<any>(null);
@@ -44,9 +45,9 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <PaystackProvider publicKey="pk_test_placeholder">
       <Stack screenOptions={{ headerShown: false }} />
       <StatusBar style="auto" />
-    </>
+    </PaystackProvider>
   );
 }

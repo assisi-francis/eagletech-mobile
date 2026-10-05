@@ -3,12 +3,13 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TextI
 import { useCartStore, syncCartFromSupabase } from '../../store/useCartStore';
 import { Minus, Plus, Trash2, ShoppingCart, ShieldCheck, Truck, ArrowLeft, CreditCard } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
-import { Paystack } from 'react-native-paystack-webview';
+import { usePaystack } from 'react-native-paystack-webview';
 import { useRouter } from 'expo-router';
 
 export default function CartScreen() {
   const { items, updateQuantity, removeItem, getTotal, clearCart } = useCartStore();
   const [showCheckout, setShowCheckout] = useState(false);
+  const { popup } = usePaystack();
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
@@ -44,12 +45,24 @@ export default function CartScreen() {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-    // Trigger Paystack
-    // We will use a ref to start Paystack
-    paystackWebViewRef.current.startTransaction();
-  };
+    
+    // Hide modal so Webview can pop up over it cleanly
+    setShowCheckout(false);
 
-  const paystackWebViewRef = React.useRef<any>();
+    popup.checkout({
+      email: formData.email || 'customer@eagletech.com',
+      amount: finalTotal,
+      reference: `TXN_${new Date().getTime()}`,
+      onSuccess: (res: any) => {
+        clearCart();
+        Alert.alert('Success!', `Payment successful! Ref: ${res.transactionRef?.reference || res.reference}`);
+        router.replace('/(tabs)');
+      },
+      onCancel: () => {
+        Alert.alert('Payment Cancelled');
+      }
+    });
+  };
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
@@ -164,22 +177,7 @@ export default function CartScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        <Paystack
-          paystackKey="pk_test_placeholder"
-          billingEmail={formData.email || 'customer@eagletech.com'}
-          amount={finalTotal}
-          currency="NGN"
-          onCancel={(e: any) => {
-            Alert.alert('Payment Cancelled');
-          }}
-          onSuccess={(res: any) => {
-            clearCart();
-            setShowCheckout(false);
-            Alert.alert('Success!', `Payment successful! Ref: ${res.transactionRef.reference}`);
-            router.replace('/(tabs)');
-          }}
-          ref={paystackWebViewRef}
-        />
+        
       </Modal>
     </View>
   );
