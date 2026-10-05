@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#3b82f6', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   buttonOutline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#3b82f6' },
-  buttonOutlineText: { color: '#3b82f6', fontWeight: '600', fontSize: 16 },
+  toggleButton: { padding: 16, alignItems: 'center' },
+  toggleButtonText: { color: '#3b82f6', fontWeight: '600', fontSize: 15 },
 });
 
