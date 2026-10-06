@@ -19,7 +19,7 @@ export default function AuthScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const redirectUrl = Linking.createURL('/auth');
+      const redirectUrl = makeRedirectUri();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -34,6 +34,9 @@ export default function AuthScreen() {
       if (error) throw error;
 
       if (data?.url) {
+        console.log('Redirect URI:', redirectUrl);
+        console.log('Supabase Auth URL:', data.url);
+        Alert.alert('Debug URL', redirectUrl);
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
         if (result.type === 'success' && result.url) {
           // Parse the URL and pass it to Supabase to establish the session
