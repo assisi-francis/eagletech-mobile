@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import * as AuthSession from 'expo-auth-session';
 import { makeRedirectUri } from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -19,7 +20,7 @@ export default function AuthScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const redirectUrl = Linking.createURL('/auth');
+      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
