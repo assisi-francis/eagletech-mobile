@@ -3,8 +3,6 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import { supabase } from '../lib/supabase';
 import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import * as AuthSession from 'expo-auth-session';
 import { makeRedirectUri } from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -17,46 +15,46 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
 
 
-  const handleGoogleSignIn = async () => {
+    const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
+
+      const redirectTo = makeRedirectUri({ path: 'callback' });
+      if (__DEV__) console.log('Google OAuth redirect URL:', redirectTo);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
 
       if (error) throw error;
 
-
-
       if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-        if (result.type === 'success' && result.url) {
-          // Parse the URL and pass it to Supabase to establish the session
-          const urlParams = new URL(result.url.replace('#', '?'));
-          const accessToken = urlParams.searchParams.get('access_token');
-          const refreshToken = urlParams.searchParams.get('refresh_token');
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type !== 'success' || !result.url) {
+          if (__DEV__) console.log('Google sign-in browser closed:', result.type);
+          return;
+        }
+        if (__DEV__) console.log('Google OAuth returned URL:', result.url);
 
-          if (accessToken && refreshToken) {
-            await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-          } else {
-             // In v2 sometimes creating a session from URL is needed if hash is not parsed properly
-             await supabase.auth.getSessionFromUrl(result.url);
-          }
+        // Supabase implicit flow
+        const urlParams = new URL(result.url.replace('#', '?'));
+        const accessToken = urlParams.searchParams.get('access_token');
+        const refreshToken = urlParams.searchParams.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) throw sessionError;
+          return;
         }
       }
-    } catch (e: any) {
-      Alert.alert('Google Sign-In Error', e.message);
+    } catch (err: any) {
+      Alert.alert('Google Sign-In Error', err.message);
     } finally {
       setLoading(false);
     }
