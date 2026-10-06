@@ -22,13 +22,22 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-splash-screen",
+      "expo-web-browser"
     ],
     "scheme": "eagletech",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0b1525"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d0eaf449-ef72-40d8-a79f-68aeed0965ae"
+      }
+    },
+    "owner": "doncyco"
   }
 }
