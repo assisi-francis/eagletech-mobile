@@ -3,8 +3,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { View, ActivityIndicator } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { PaystackProvider } from 'react-native-paystack-webview';
 import { useWishlistStore } from '../store/useWishlistStore';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [session, setSession] = useState<any>(null);
@@ -54,15 +57,12 @@ export default function RootLayout() {
       // If logged in and trying to access the auth screen, send to tabs
       router.replace('/(tabs)');
     }
+    
+    // Hide the native splash screen smoothly now that routing is complete
+    SplashScreen.hideAsync();
   }, [session, loading, segments]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
+  if (loading) return null;
 
   return (
     <PaystackProvider publicKey="pk_test_945f807df0628c05449526c4c62bd7e882318499" defaultChannels={['bank', 'card', 'qr', 'ussd', 'mobile_money', 'bank_transfer']}>
