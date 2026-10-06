@@ -58,8 +58,10 @@ export default function RootLayout() {
       router.replace('/(tabs)');
     }
     
-    // Hide the native splash screen smoothly now that routing is complete
-    SplashScreen.hideAsync();
+    // Give the splash screen a guaranteed 2 second minimum display time so the user can see the logo
+    setTimeout(() => {
+      SplashScreen.hideAsync();
+    }, 2000);
   }, [session, loading, segments]);
 
   if (loading) return null;
