@@ -34,7 +34,7 @@ export default function AuthScreen() {
 
       if (error) throw error;
 
-      Alert.alert('DEBUG URL', redirectUrl);
+
 
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
