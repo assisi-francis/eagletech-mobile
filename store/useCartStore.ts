@@ -29,12 +29,15 @@ export const useCartStore = create<CartState>()(
                 : item
             ),
           });
+          syncCartToDB(get().items);
         } else {
           set({ items: [...items, { ...product, cartQuantity: quantity, selectedAddons: addons }] });
+          syncCartToDB(get().items);
         }
       },
       removeItem: (productId) => {
         set({ items: get().items.filter((item) => item.id !== productId) });
+        syncCartToDB(get().items);
       },
       updateQuantity: (productId, quantity) => {
         set({
@@ -42,8 +45,9 @@ export const useCartStore = create<CartState>()(
             item.id === productId ? { ...item, cartQuantity: quantity } : item
           ),
         });
+        syncCartToDB(get().items);
       },
-      clearCart: () => set({ items: [] }),
+      clearCart: () => { set({ items: [] }); syncCartToDB([]); },
       getTotal: () => {
         return get().items.reduce(
           (total, item) => total + item.price * item.cartQuantity,
@@ -62,25 +66,18 @@ export const useCartStore = create<CartState>()(
 // Subscribe to store changes and sync to Supabase if logged in
 import { supabase } from '../lib/supabase';
 
-useCartStore.subscribe(async (state) => {
+
+const syncCartToDB = async (items: CartItem[]) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
     const { error } = await supabase.from('carts').upsert(
-      { 
-        user_id: session.user.id, 
-        items: state.items 
-      },
+      { user_id: session.user.id, items },
       { onConflict: 'user_id' }
     );
-    if (error) {
-      console.error('Supabase cart sync error:', error);
-      // We don't want to spam toasts for every single quantity change if table is missing,
-      // but alerting once is helpful.
-    } else {
-      console.log(`Cart saved to DB: ${state.items.length} items`);
-    }
+    if (!error) console.log('Cart saved to DB:', items.length);
   }
-});
+};
+
 
 import { Alert } from 'react-native';
 const toast = { error: (msg: string) => Alert.alert('Error', msg), success: (msg: string) => Alert.alert('Success', msg) };
