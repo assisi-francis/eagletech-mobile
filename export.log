@@ -1,0 +1,15 @@
+env: load .env
+env: export EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_URL
+Starting Metro Bundler
+
+Android Bundling failed 2618ms node_modules/expo-router/entry.js (3175 modules)
+
+SyntaxError: SyntaxError: /Users/macbook/Downloads/FrontEnd_Training/eagletech-mobile/app/(tabs)/index.tsx: Unexpected reserved word 'await'. (30:21)
+
+[0m [90m 28 |[39m     setRefreshing([36mfalse[39m)[33m;[39m
+ [90m 29 |[39m   }[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m     [36mconst[39m { data } [33m=[39m [36mawait[39m supabase[33m.[39m[36mfrom[39m([32m'products'[39m)[33m.[39mselect([32m'*'[39m)[33m.[39morder([32m'created_at'[39m[33m,[39m { ascending[33m:[39m [36mfalse[39m })[33m;[39m
+ [90m    |[39m                      [31m[1m^[22m[39m
+ [90m 31 |[39m     [36mif[39m (data) setProducts(data)[33m;[39m
+ [90m 32 |[39m     setLoading([36mfalse[39m)[33m;[39m
+ [90m 33 |[39m   }[33m;[39m[0m

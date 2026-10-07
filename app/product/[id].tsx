@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { mockProducts } from '../../lib/data';
+
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
@@ -42,8 +42,19 @@ export default function ProductDetailScreen() {
     fetchReviews();
   }, [id]);
 
-  const product = mockProducts.find(p => p.slug === id || p.id === id);
+  const [product, setProduct] = React.useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = React.useState(true);
 
+  React.useEffect(() => {
+    const fetchProduct = async () => {
+      const { data } = await supabase.from('products').select('*').or(`slug.eq.${id},id.eq.${id}`).single();
+      setProduct(data);
+      setLoadingProduct(false);
+    };
+    fetchProduct();
+  }, [id]);
+
+  if (loadingProduct) return <View style={styles.center}><ActivityIndicator size="large" /></View>;
   if (!product) {
     return (
       <View style={styles.center}>

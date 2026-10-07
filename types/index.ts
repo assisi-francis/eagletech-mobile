@@ -23,7 +23,7 @@ export interface Order {
   user_id: string;
   total_amount: number;
   payment_status: 'PENDING' | 'SUCCESSFUL' | 'FAILED';
-  order_status: 'PROCESSING' | 'SHIPPED' | 'DELIVERED';
+  order_status: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED';
   paystack_reference: string;
   shipping_address: string;
   installation_notes?: string;

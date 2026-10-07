@@ -6,10 +6,42 @@ import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { PaystackProvider } from 'react-native-paystack-webview';
 import { useWishlistStore } from '../store/useWishlistStore';
+import { syncCartFromSupabase } from '../store/useCartStore';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+
+  // --- REALTIME SYNC LISTENER ---
+  useEffect(() => {
+    let cartSub;
+    let wishlistSub;
+    
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        cartSub = supabase
+          .channel('mobile-carts-channel')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'carts', filter: `user_id=eq.${session.user.id}` }, 
+            () => { syncCartFromSupabase(); }
+          )
+          .subscribe();
+          
+        wishlistSub = supabase
+          .channel('mobile-wishlist-channel')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'wishlist', filter: `user_id=eq.${session.user.id}` }, 
+            () => { useWishlistStore.getState().fetchWishlist(session.user.id); }
+          )
+          .subscribe();
+      }
+    });
+
+    return () => {
+      if (cartSub) supabase.removeChannel(cartSub);
+      if (wishlistSub) supabase.removeChannel(wishlistSub);
+    };
+  }, []);
+  // ------------------------------
+
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,12 +49,14 @@ export default function RootLayout() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         useWishlistStore.getState().fetchWishlist(session.user.id);
+        syncCartFromSupabase();
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         useWishlistStore.getState().fetchWishlist(session.user.id);
+        syncCartFromSupabase();
       } else if (event === 'SIGNED_OUT') {
         useWishlistStore.getState().clearWishlist();
       }

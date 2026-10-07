@@ -11,6 +11,7 @@ export default function CartScreen() {
   const [showCheckout, setShowCheckout] = useState(false);
   const { popup } = usePaystack();
   const [user, setUser] = useState<any>(null);
+  const [placingOrder, setPlacingOrder] = useState(false);
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -40,27 +41,83 @@ export default function CartScreen() {
   const shippingCost = totalAmount >= 1000000 ? 0 : 15000;
   const finalTotal = totalAmount + shippingCost;
 
-  const handleCheckoutSubmit = () => {
+  const handleCheckoutSubmit = async () => {
+    if (placingOrder) return;
     if (!formData.fullName || !formData.email || !formData.address || !formData.phone) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-    
-    // Hide modal so Webview can pop up over it cleanly
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      Alert.alert('Error', 'Please sign in to place an order');
+      router.push('/auth');
+      return;
+    }
+
+    setPlacingOrder(true);
+    const paystackReference = `TXN_${new Date().getTime()}`;
+
+    // Mirror the web app: persist a PENDING order before opening Paystack so the
+    // purchase shows up in order history, and the web app's Paystack webhook can
+    // confirm it by matching paystack_reference later.
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        user_id: session.user.id,
+        total_amount: finalTotal,
+        payment_status: 'PENDING',
+        order_status: 'PENDING',
+        shipping_address: `${formData.address}, ${formData.city}, ${formData.state}`,
+        paystack_reference: paystackReference,
+      })
+      .select()
+      .single();
+
+    if (orderError || !order) {
+      setPlacingOrder(false);
+      Alert.alert('Checkout Error', orderError?.message || 'Could not create your order. Please try again.');
+      return;
+    }
+
+    // Best effort, same as the web app: order_items.product_id is a uuid column
+    // and the mock catalog IDs ("l1") cannot satisfy it, so this fails until
+    // real products are seeded — the order itself is already recorded.
+    const { error: itemsError } = await supabase.from('order_items').insert(
+      items.map((item) => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.cartQuantity,
+        unit_price: item.price,
+      }))
+    );
+    if (itemsError) console.warn('order_items insert failed:', itemsError.message);
+
+    // Hide modal so the Paystack webview can present over it cleanly
     setShowCheckout(false);
 
     popup.checkout({
-      email: formData.email || 'customer@eagletech.com',
-      amount: finalTotal, // amount is in Naira for react-native-paystack-webview v5 (sometimes)
-      reference: `TXN_${new Date().getTime()}`,
-      onSuccess: (res: any) => {
+      email: formData.email,
+      amount: finalTotal, // naira; the library converts to kobo (x100)
+      reference: paystackReference,
+      onSuccess: async () => {
+        // Confirm locally as well; the shared Paystack webhook may also flip
+        // payment_status by matching this reference.
+        const { error: confirmError } = await supabase
+          .from('orders')
+          .update({ payment_status: 'SUCCESSFUL', order_status: 'PROCESSING' })
+          .eq('id', order.id);
+        if (confirmError) console.warn('Failed to confirm order payment:', confirmError.message);
+
         clearCart();
-        Alert.alert('Success!', `Payment successful! Ref: ${res.transactionRef?.reference || res.reference}`);
+        setPlacingOrder(false);
+        Alert.alert('Success!', `Payment successful! Ref: ${paystackReference}`);
         router.replace('/(tabs)');
       },
       onCancel: () => {
-        Alert.alert('Payment Cancelled');
-      }
+        setPlacingOrder(false);
+        Alert.alert('Payment Cancelled', 'Your order was saved as pending.');
+      },
     });
   };
 
@@ -169,9 +226,9 @@ export default function CartScreen() {
               <TextInput style={[styles.input, {flex: 1}]} placeholder="State" value={formData.state} onChangeText={(t) => setFormData({...formData, state: t})} />
             </View>
             
-            <TouchableOpacity style={styles.payBtn} onPress={handleCheckoutSubmit}>
+            <TouchableOpacity style={styles.payBtn} onPress={handleCheckoutSubmit} disabled={placingOrder}>
               <CreditCard color="#fff" size={20} style={{marginRight: 8}} />
-              <Text style={styles.payBtnText}>Pay ₦{finalTotal.toLocaleString()}</Text>
+              <Text style={styles.payBtnText}>{placingOrder ? 'Placing Order...' : `Pay ₦${finalTotal.toLocaleString()}`}</Text>
             </TouchableOpacity>
             <View style={{height: 40}} />
           </ScrollView>

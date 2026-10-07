@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useCartStore } from '../../store/useCartStore';
 import { useRouter } from 'expo-router';
-import { mockProducts } from '../../lib/data';
+import { supabase } from '../../lib/supabase';
 import { ShoppingCart } from 'lucide-react-native';
 
 export default function ShopScreen() {
@@ -10,17 +10,22 @@ export default function ShopScreen() {
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
   const fetchProducts = async () => {
-    // Simulate network delay to match web app loading experience
-    setTimeout(() => {
-      setProducts(mockProducts);
-      setLoading(false);
-    }, 500);
+    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (data) setProducts(data);
+    setLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchProducts();
+    setRefreshing(false);
   };
 
   const renderProduct = ({ item }: { item: any }) => (
@@ -65,6 +70,7 @@ export default function ShopScreen() {
         keyExtractor={(i) => i.id}
         renderItem={renderProduct}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0f172a" colors={["#0f172a"]} />}
         numColumns={2}
         columnWrapperStyle={styles.row}
       />

@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIn
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { Mail, Calendar, Fingerprint, LogOut, Package, Clock, CheckCircle2, Heart } from 'lucide-react-native';
-import { mockProducts } from '../../lib/data';
 import { useWishlistStore } from '../../store/useWishlistStore';
 
 export default function ProfileScreen() {
@@ -64,7 +63,14 @@ export default function ProfileScreen() {
   };
 
   const wishlistItems = useWishlistStore((state) => state.items);
-  const wishlist = mockProducts.filter(p => wishlistItems.includes(p.slug));
+  const [wishlist, setWishlist] = React.useState<any[]>([]);
+  React.useEffect(() => {
+    if (wishlistItems.length > 0) {
+      supabase.from('products').select('*').in('slug', wishlistItems).then(({ data }) => setWishlist(data || []));
+    } else {
+      setWishlist([]);
+    }
+  }, [wishlistItems]);
 
   if (loading) {
     return (

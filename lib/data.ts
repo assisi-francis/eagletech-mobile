@@ -54,7 +54,7 @@ export const mockProducts: Product[] = [
     "price": 2800000,
     "stock_quantity": 12,
     "images": [
-      "https://images.unsplash.com/photo-1593642702821-c8f659ca2a53?w=800&q=80"
+      "https://ftyvnkssowiedoymxvsn.supabase.co/storage/v1/object/public/product-images/dell-xps-15.jpg"
     ],
     "is_service": false,
     "brand": "Dell",
@@ -114,7 +114,7 @@ export const mockProducts: Product[] = [
     "price": 1100000,
     "stock_quantity": 20,
     "images": [
-      "https://images.unsplash.com/photo-1615829630983-3c97ea6837a2?w=800&q=80"
+      "https://ftyvnkssowiedoymxvsn.supabase.co/storage/v1/object/public/product-images/google-pixel-8-pro.jpg"
     ],
     "is_service": false,
     "brand": "Google",
@@ -189,7 +189,7 @@ export const mockProducts: Product[] = [
     "price": 140000,
     "stock_quantity": 45,
     "images": [
-      "https://images.unsplash.com/photo-1534938634952-b8832a82086e?w=800&q=80"
+      "https://ftyvnkssowiedoymxvsn.supabase.co/storage/v1/object/public/product-images/crucial-x9-pro-portable-ssd-1tb.jpg"
     ],
     "is_service": false,
     "brand": "Crucial",
@@ -219,7 +219,7 @@ export const mockProducts: Product[] = [
     "price": 25000,
     "stock_quantity": 200,
     "images": [
-      "https://images.unsplash.com/photo-1621360157947-f417a86f030a?w=800&q=80"
+      "https://ftyvnkssowiedoymxvsn.supabase.co/storage/v1/object/public/product-images/sandisk-ultra-dual-drive-128gb.jpg"
     ],
     "is_service": false,
     "brand": "SanDisk",
@@ -249,7 +249,7 @@ export const mockProducts: Product[] = [
     "price": 15000,
     "stock_quantity": 120,
     "images": [
-      "https://images.unsplash.com/photo-1598099354020-f5a0db5a21e4?w=800&q=80"
+      "https://ftyvnkssowiedoymxvsn.supabase.co/storage/v1/object/public/product-images/orico-hdd-enclosure-3.jpg"
     ],
     "is_service": false,
     "brand": "Orico",
@@ -264,7 +264,7 @@ export const mockProducts: Product[] = [
     "price": 440000,
     "stock_quantity": 50,
     "images": [
-      "https://upload.wikimedia.org/wikipedia/commons/1/1d/SpaceX_Starlink_User_Terminal_v2_%2851740775162%29.jpg"
+      "https://ftyvnkssowiedoymxvsn.supabase.co/storage/v1/object/public/product-images/starlink-standard-kit.jpg"
     ],
     "is_service": false,
     "brand": "SpaceX",
