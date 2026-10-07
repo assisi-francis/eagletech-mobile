@@ -6,7 +6,7 @@ import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { PaystackProvider } from 'react-native-paystack-webview';
 import { useWishlistStore } from '../store/useWishlistStore';
-import { syncCartFromSupabase } from '../store/useCartStore';
+import { syncCartFromSupabase, useCartStore } from '../store/useCartStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -59,6 +59,7 @@ export default function RootLayout() {
         syncCartFromSupabase();
       } else if (event === 'SIGNED_OUT') {
         useWishlistStore.getState().clearWishlist();
+        useCartStore.getState().clearCart();
       }
     });
 
