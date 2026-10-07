@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { Mail, Calendar, Fingerprint, LogOut, Package, Clock, CheckCircle2, Heart } from 'lucide-react-native';
@@ -10,6 +10,7 @@ export default function ProfileScreen() {
   const [orders, setOrders] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -39,6 +40,15 @@ export default function ProfileScreen() {
 
     
     setLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    if (user) {
+      await useWishlistStore.getState().fetchWishlist(user.id);
+    }
+    setRefreshing(false);
   };
 
   const handleSignOut = async () => {
@@ -128,7 +138,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} />}>
       {/* Header Card */}
       <View style={styles.profileCard}>
         <View style={styles.profileHeader}>
