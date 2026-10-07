@@ -47,9 +47,15 @@ export default function ProductDetailScreen() {
 
   React.useEffect(() => {
     const fetchProduct = async () => {
-      const { data } = await supabase.from('products').select('*').or(`slug.eq.${id},id.eq.${id}`).single();
-      setProduct(data);
-      setLoadingProduct(false);
+      try {
+        const { data, error } = await supabase.from('products').select('*').eq('slug', id).single();
+        if (error) console.error("Supabase Error:", error);
+        setProduct(data);
+      } catch (e) {
+        console.error("Crash in fetchProduct:", e);
+      } finally {
+        setLoadingProduct(false);
+      }
     };
     fetchProduct();
   }, [id]);
