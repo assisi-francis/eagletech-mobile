@@ -12,6 +12,7 @@ export default function CartScreen() {
   const { popup } = usePaystack();
   const [user, setUser] = useState<any>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -36,6 +37,12 @@ export default function CartScreen() {
       }
     });
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await syncCartFromSupabase();
+    setRefreshing(false);
+  };
 
   const totalAmount = getTotal();
   const shippingCost = totalAmount >= 1000000 ? 0 : 15000;
@@ -169,6 +176,8 @@ export default function CartScreen() {
       </View>
 
       <FlatList
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         data={items}
         renderItem={renderItem}
         keyExtractor={(i) => i.id}
