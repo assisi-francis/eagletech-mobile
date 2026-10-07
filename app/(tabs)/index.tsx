@@ -25,6 +25,18 @@ export default function ShopScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchProducts();
+    
+    // Also sync cart and wishlist when pulling to refresh
+    const { syncCartFromSupabase } = require('../../store/useCartStore');
+    const { useWishlistStore } = require('../../store/useWishlistStore');
+    const { supabase } = require('../../lib/supabase');
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await syncCartFromSupabase();
+      await useWishlistStore.getState().fetchWishlist(session.user.id);
+    }
+    
     setRefreshing(false);
   };
 
