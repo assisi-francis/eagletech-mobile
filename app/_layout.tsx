@@ -21,14 +21,14 @@ export default function RootLayout() {
       if (session?.user) {
         cartSub = supabase
           .channel('mobile-carts-channel')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'carts', filter: `user_id=eq.${session.user.id}` }, 
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'carts' }, 
             () => { syncCartFromSupabase(); }
           )
           .subscribe();
           
         wishlistSub = supabase
           .channel('mobile-wishlist-channel')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'wishlist', filter: `user_id=eq.${session.user.id}` }, 
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'wishlist' }, 
             () => { useWishlistStore.getState().fetchWishlist(session.user.id); }
           )
           .subscribe();
