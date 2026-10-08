@@ -97,19 +97,18 @@ export const syncCartFromSupabase = async () => {
       toast.error('Could not sync cart: ' + error.message);
     }
       
-    // If the database has a cart row, we strictly mirror it (even if it's empty)
-    setTimeout(() => {
-      useCartStore.getState().setItems(data.items || []);
-    }, 100);
-  } else if (error && error.code === 'PGRST116') {
-    // PGRST116 means NO ROW EXISTS yet (brand new account). 
-    // This is the ONLY time we merge the guest cart into the DB!
-    if (useCartStore.getState().items.length > 0) {
-      const { error: upsertError } = await supabase.from('carts').upsert(
-        { user_id: session.user.id, items: useCartStore.getState().items },
-        { onConflict: 'user_id' }
-      );
-      if (upsertError) console.error('Error migrating guest cart:', upsertError);
+    if (data) {
+      setTimeout(() => {
+        useCartStore.getState().setItems(data.items || []);
+      }, 100);
+    } else if (error && error.code === 'PGRST116') {
+      if (useCartStore.getState().items.length > 0) {
+        const { error: upsertError } = await supabase.from('carts').upsert(
+          { user_id: session.user.id, items: useCartStore.getState().items },
+          { onConflict: 'user_id' }
+        );
+        if (upsertError) console.error('Error migrating guest cart:', upsertError);
+      }
     }
   }
 };
