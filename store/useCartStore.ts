@@ -68,48 +68,53 @@ import { supabase } from '../lib/supabase';
 
 
 const syncCartToDB = async (items: CartItem[]) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    const { error } = await supabase.from('carts').upsert(
-      { user_id: session.user.id, items },
-      { onConflict: 'user_id' }
-    );
-    if (!error) console.log('Cart saved to DB:', items.length);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { error } = await supabase.from('carts').upsert(
+        { user_id: session.user.id, items },
+        { onConflict: 'user_id' }
+      );
+      if (!error) console.log('Cart saved to DB:', items.length);
+    }
+  } catch (e) {
+    console.warn('Could not sync cart to DB (offline):', e);
   }
 };
 
 
-import { Alert } from 'react-native';
-const toast = { error: (msg: string) => Alert.alert('Error', msg), success: (msg: string) => Alert.alert('Success', msg) };
-
 // Function to pull remote cart on login
 export const syncCartFromSupabase = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    const { data, error } = await supabase
-      .from('carts')
-      .select('items')
-      .eq('user_id', session.user.id)
-      .single();
-      
-    if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error
-      console.error('Supabase cart fetch error:', error);
-      toast.error('Could not sync cart: ' + error.message);
-    }
-      
-    if (data) {
-      setTimeout(() => {
-        useCartStore.getState().setItems(data.items || []);
-      }, 100);
-    } else if (error && error.code === 'PGRST116') {
-      if (useCartStore.getState().items.length > 0) {
-        const { error: upsertError } = await supabase.from('carts').upsert(
-          { user_id: session.user.id, items: useCartStore.getState().items },
-          { onConflict: 'user_id' }
-        );
-        if (upsertError) console.error('Error migrating guest cart:', upsertError);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data, error } = await supabase
+        .from('carts')
+        .select('items')
+        .eq('user_id', session.user.id)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error
+        console.warn('Supabase cart fetch failed (offline or network error):', error.message || error);
+        return;
+      }
+        
+      if (data) {
+        setTimeout(() => {
+          useCartStore.getState().setItems(data.items || []);
+        }, 100);
+      } else if (error && error.code === 'PGRST116') {
+        if (useCartStore.getState().items.length > 0) {
+          const { error: upsertError } = await supabase.from('carts').upsert(
+            { user_id: session.user.id, items: useCartStore.getState().items },
+            { onConflict: 'user_id' }
+          );
+          if (upsertError) console.warn('Error migrating guest cart:', upsertError.message || upsertError);
+        }
       }
     }
+  } catch (err) {
+    console.warn('Network/offline error during cart sync:', err);
   }
 };
 
