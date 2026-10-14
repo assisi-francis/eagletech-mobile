@@ -1,11 +1,13 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
 import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star, Heart } from 'lucide-react-native';
+import { Toast } from '../../components/Toast';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -19,6 +21,8 @@ export default function ProductDetailScreen() {
   const slug = id as string;
   const isSaved = wishlistItems.includes(slug);
   const [saving, setSaving] = React.useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
 
   const handleSaveForLater = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -28,7 +32,9 @@ export default function ProductDetailScreen() {
       return;
     }
     setSaving(true);
-    await toggleWishlist(slug, session.user.id);
+    const added = await toggleWishlist(slug, session.user.id);
+    setToastMessage(added ? 'Saved to Wishlist' : 'Removed from Wishlist');
+    setShowToast(true);
     setSaving(false);
   };
 
@@ -87,7 +93,10 @@ export default function ProductDetailScreen() {
         <View style={styles.imageContainer}>
           <Image 
             source={{ uri: product.images?.[0] || product.image_urls?.[0] || 'https://via.placeholder.com/400' }} 
-            style={styles.image} 
+            style={styles.image}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
           />
           {product.brand && (
             <View style={styles.brandBadgeAbsolute}>
@@ -202,13 +211,21 @@ export default function ProductDetailScreen() {
           style={styles.addToCartBtn}
           onPress={() => {
             addItem(product as any, 1);
-            Alert.alert('Success', `${product.title || product.name} added to cart`);
+            setToastMessage(`${product.title || product.name} added to cart`);
+            setShowToast(true);
           }}
         >
           <ShoppingCart color="#fff" size={20} style={{ marginRight: 10 }} />
           <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
+
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        onHide={() => setShowToast(false)}
+        showViewCart={true}
+      />
     </View>
   );
 }

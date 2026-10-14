@@ -17,8 +17,8 @@ export default function RootLayout() {
 
   // --- REALTIME SYNC LISTENER ---
   useEffect(() => {
-    let cartSub;
-    let wishlistSub;
+    let cartSub: any;
+    let wishlistSub: any;
     
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {

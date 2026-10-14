@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, Modal, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { useCartStore, syncCartFromSupabase } from '../../store/useCartStore';
 import { Minus, Plus, Trash2, ShoppingCart, ShieldCheck, Truck, ArrowLeft, CreditCard } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
@@ -130,7 +132,13 @@ export default function CartScreen() {
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
-      <Image source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} style={styles.image} />
+      <Image 
+        source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} 
+        style={styles.image}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+      />
       <View style={styles.details}>
         <View>
           <Text style={styles.name} numberOfLines={1}>{item.title || item.name}</Text>
@@ -140,14 +148,24 @@ export default function CartScreen() {
         <View style={styles.priceRow}>
           <Text style={styles.price}>₦{(item.price * item.cartQuantity).toLocaleString()}</Text>
           <View style={styles.qtyContainer}>
-            <TouchableOpacity onPress={() => {
-              if (item.cartQuantity > 1) updateQuantity(item.id, item.cartQuantity - 1);
-              else removeItem(item.id);
-            }} style={styles.btn}>
+            <TouchableOpacity 
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (e) {}
+                if (item.cartQuantity > 1) updateQuantity(item.id, item.cartQuantity - 1);
+                else removeItem(item.id);
+              }} 
+              style={styles.btn}
+            >
               {item.cartQuantity === 1 ? <Trash2 size={14} color="#ef4444" /> : <Minus size={14} color="#0f172a" />}
             </TouchableOpacity>
             <Text style={styles.qty}>{item.cartQuantity}</Text>
-            <TouchableOpacity onPress={() => updateQuantity(item.id, item.cartQuantity + 1)} style={styles.btn}>
+            <TouchableOpacity 
+              onPress={() => {
+                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (e) {}
+                updateQuantity(item.id, item.cartQuantity + 1);
+              }} 
+              style={styles.btn}
+            >
               <Plus size={14} color="#0f172a" />
             </TouchableOpacity>
           </View>
