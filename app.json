@@ -25,7 +25,8 @@
       "expo-router",
       "expo-splash-screen",
       "expo-web-browser",
-      "expo-image"
+      "expo-image",
+      "expo-secure-store"
     ],
     "scheme": "eagletech",
     "splash": {

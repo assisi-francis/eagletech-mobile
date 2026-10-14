@@ -41,6 +41,9 @@ export default function CartScreen() {
   }, []);
 
   const onRefresh = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (e) {}
     setRefreshing(true);
     await syncCartFromSupabase();
     setRefreshing(false);
@@ -110,6 +113,10 @@ export default function CartScreen() {
       amount: finalTotal, // naira; the library converts to kobo (x100)
       reference: paystackReference,
       onSuccess: async () => {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e) {}
+
         // Confirm locally as well; the shared Paystack webhook may also flip
         // payment_status by matching this reference.
         const { error: confirmError } = await supabase

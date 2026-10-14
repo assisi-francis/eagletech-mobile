@@ -2,20 +2,29 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
   TextInput,
   ScrollView,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ShoppingCart, Search, X, SlidersHorizontal, PackageOpen } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import {
+  ShoppingCart,
+  Search,
+  X,
+  ArrowUpDown,
+  PackageOpen,
+} from 'lucide-react-native';
 import { useCartStore } from '../../store/useCartStore';
 import { useProductStore } from '../../store/useProductStore';
 import { ProductSkeleton } from '../../components/ProductSkeleton';
 import { Toast } from '../../components/Toast';
+
+type SortOption = 'featured' | 'price-asc' | 'price-desc';
 
 export default function ShopScreen() {
   const router = useRouter();
@@ -25,6 +34,7 @@ export default function ShopScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
@@ -33,6 +43,10 @@ export default function ShopScreen() {
   }, []);
 
   const onRefresh = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (e) {}
+
     setRefreshing(true);
     await fetchProducts(true);
 
@@ -54,7 +68,7 @@ export default function ShopScreen() {
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter((item) => {
+    const list = products.filter((item) => {
       const matchesCategory =
         selectedCategory === 'All' ||
         (item.category && item.category.toLowerCase() === selectedCategory.toLowerCase());
@@ -69,7 +83,15 @@ export default function ShopScreen() {
 
       return matchesCategory && (titleMatch || brandMatch || descMatch || catMatch);
     });
-  }, [products, selectedCategory, searchQuery]);
+
+    if (sortBy === 'price-asc') {
+      return [...list].sort((a, b) => a.price - b.price);
+    }
+    if (sortBy === 'price-desc') {
+      return [...list].sort((a, b) => b.price - a.price);
+    }
+    return list;
+  }, [products, selectedCategory, searchQuery, sortBy]);
 
   const handleAddToCart = (item: any) => {
     addItem(item, 1);
@@ -82,46 +104,48 @@ export default function ShopScreen() {
       item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/300';
 
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.85}
-        onPress={() => router.push(`/product/${item.slug || item.id}`)}
-      >
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.image}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
-          {item.brand && (
-            <View style={styles.brandBadge}>
-              <Text style={styles.brandText}>{item.brand}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={2}>
-            {item.title || item.name}
-          </Text>
-
-          <View style={styles.footerRow}>
-            <Text style={styles.price}>₦{item.price?.toLocaleString()}</Text>
-
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleAddToCart(item);
-              }}
-            >
-              <ShoppingCart color="#fff" size={15} />
-            </TouchableOpacity>
+      <View style={styles.cardWrapper}>
+        <TouchableOpacity
+          style={styles.card}
+          activeOpacity={0.85}
+          onPress={() => router.push(`/product/${item.slug || item.id}`)}
+        >
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.image}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+            {item.brand && (
+              <View style={styles.brandBadge}>
+                <Text style={styles.brandText}>{item.brand}</Text>
+              </View>
+            )}
           </View>
-        </View>
-      </TouchableOpacity>
+
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={2}>
+              {item.title || item.name}
+            </Text>
+
+            <View style={styles.footerRow}>
+              <Text style={styles.price}>₦{item.price?.toLocaleString()}</Text>
+
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleAddToCart(item);
+                }}
+              >
+                <ShoppingCart color="#fff" size={15} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -139,12 +163,11 @@ export default function ShopScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <FlashList
         data={filteredProducts}
         keyExtractor={(item) => item.id}
         renderItem={renderProduct}
         numColumns={2}
-        columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -192,7 +215,10 @@ export default function ShopScreen() {
                   <TouchableOpacity
                     key={cat}
                     style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
-                    onPress={() => setSelectedCategory(cat)}
+                    onPress={() => {
+                      try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch(e) {}
+                      setSelectedCategory(cat);
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text
@@ -208,23 +234,54 @@ export default function ShopScreen() {
               })}
             </ScrollView>
 
-            {/* Results Counter */}
-            <View style={styles.metaRow}>
-              <Text style={styles.metaText}>
-                {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}{' '}
-                {selectedCategory !== 'All' ? `in ${selectedCategory}` : 'available'}
-              </Text>
-              {(searchQuery.length > 0 || selectedCategory !== 'All') && (
+            {/* Sort & Results Bar */}
+            <View style={styles.sortBar}>
+              <View style={styles.sortPills}>
+                <TouchableOpacity
+                  style={[styles.sortPill, sortBy === 'featured' && styles.sortPillActive]}
+                  onPress={() => setSortBy('featured')}
+                >
+                  <Text style={[styles.sortPillText, sortBy === 'featured' && styles.sortPillTextActive]}>
+                    Featured
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sortPill, sortBy === 'price-asc' && styles.sortPillActive]}
+                  onPress={() => setSortBy('price-asc')}
+                >
+                  <Text style={[styles.sortPillText, sortBy === 'price-asc' && styles.sortPillTextActive]}>
+                    Price: Low
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sortPill, sortBy === 'price-desc' && styles.sortPillActive]}
+                  onPress={() => setSortBy('price-desc')}
+                >
+                  <Text style={[styles.sortPillText, sortBy === 'price-desc' && styles.sortPillTextActive]}>
+                    Price: High
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {(searchQuery.length > 0 || selectedCategory !== 'All' || sortBy !== 'featured') && (
                 <TouchableOpacity
                   onPress={() => {
                     setSearchQuery('');
                     setSelectedCategory('All');
+                    setSortBy('featured');
                   }}
                 >
                   <Text style={styles.resetText}>Reset</Text>
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Results Count */}
+            <Text style={styles.metaText}>
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
+            </Text>
           </View>
         }
         ListEmptyComponent={
@@ -241,6 +298,7 @@ export default function ShopScreen() {
               onPress={() => {
                 setSearchQuery('');
                 setSelectedCategory('All');
+                setSortBy('featured');
               }}
             >
               <Text style={styles.clearFiltersText}>Clear Filters</Text>
@@ -275,10 +333,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   list: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingBottom: 40,
   },
   headerSection: {
+    paddingHorizontal: 4,
     paddingBottom: 10,
     paddingTop: 4,
   },
@@ -291,7 +350,7 @@ const styles = StyleSheet.create({
     height: 46,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginBottom: 12,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -315,11 +374,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingVertical: 2,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   categoryPill: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
@@ -337,32 +396,52 @@ const styles = StyleSheet.create({
   categoryPillTextActive: {
     color: '#ffffff',
   },
-  metaRow: {
+  sortBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingBottom: 4,
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
-  metaText: {
-    fontSize: 12,
+  sortPills: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  sortPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+  },
+  sortPillActive: {
+    backgroundColor: '#2563eb',
+  },
+  sortPillText: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#64748b',
+  },
+  sortPillTextActive: {
+    color: '#ffffff',
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94a3b8',
+    marginTop: 2,
   },
   resetText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#2563eb',
   },
-  row: {
-    justifyContent: 'space-between',
+  cardWrapper: {
+    flex: 1,
+    padding: 4,
   },
   card: {
-    width: '48%',
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 8,
-    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,

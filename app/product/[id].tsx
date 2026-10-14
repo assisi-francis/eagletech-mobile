@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Share } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
-import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star, Heart } from 'lucide-react-native';
+import { ArrowLeft, ShoppingCart, ShieldCheck, RotateCcw, Truck, Check, Star, Heart, Share2 } from 'lucide-react-native';
 import { Toast } from '../../components/Toast';
 
 export default function ProductDetailScreen() {
@@ -78,6 +79,19 @@ export default function ProductDetailScreen() {
     );
   }
 
+  const handleShare = async () => {
+    if (!product) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Share.share({
+        message: `Check out ${product.title || product.name} on EagleTech Store!\nPrice: ₦${product.price?.toLocaleString()}\nhttps://eagletech-store.vercel.app/product/${product.slug || product.id}`,
+        title: product.title || product.name,
+      });
+    } catch (error) {
+      console.warn('Share error:', error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -86,7 +100,9 @@ export default function ProductDetailScreen() {
           <ArrowLeft color="#0f172a" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
+          <Share2 color="#0f172a" size={20} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>

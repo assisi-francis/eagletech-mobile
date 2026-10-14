@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { PaystackProvider } from 'react-native-paystack-webview';
 import { useWishlistStore } from '../store/useWishlistStore';
 import { syncCartFromSupabase, useCartStore } from '../store/useCartStore';
+import { OfflineBanner } from '../components/OfflineBanner';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -106,6 +107,7 @@ export default function RootLayout() {
 
   return (
     <PaystackProvider publicKey="pk_test_945f807df0628c05449526c4c62bd7e882318499" defaultChannels={['bank', 'card', 'qr', 'ussd', 'mobile_money', 'bank_transfer']}>
+      <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }} />
       <StatusBar style="auto" />
     </PaystackProvider>
