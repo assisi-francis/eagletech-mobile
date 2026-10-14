@@ -4,6 +4,58 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product } from '../types';
 import { supabase } from '../lib/supabase';
 
+const DEFAULT_CATEGORIES = ['All', 'Laptops', 'Phones', 'Accessories', 'Networking'];
+
+const categoryMap: Record<string, string> = {
+  'dell-xps-15': 'Laptops',
+  'google-pixel-8-pro': 'Phones',
+  'crucial-x9-pro': 'Accessories',
+  'sandisk-ultra-1tb': 'Accessories',
+  'orico-enclosure': 'Accessories',
+  'starlink-standard': 'Networking',
+};
+
+const brandMap: Record<string, string> = {
+  'dell-xps-15': 'Dell',
+  'google-pixel-8-pro': 'Google',
+  'crucial-x9-pro': 'Crucial',
+  'sandisk-ultra-1tb': 'SanDisk',
+  'orico-enclosure': 'Orico',
+  'starlink-standard': 'Starlink',
+};
+
+function inferCategory(slug = '', title = ''): string {
+  if (categoryMap[slug]) return categoryMap[slug];
+  const text = `${slug} ${title}`.toLowerCase();
+  if (text.includes('laptop') || text.includes('macbook') || text.includes('xps') || text.includes('spectre')) return 'Laptops';
+  if (text.includes('phone') || text.includes('pixel') || text.includes('iphone') || text.includes('samsung')) return 'Phones';
+  if (text.includes('starlink') || text.includes('router') || text.includes('network') || text.includes('wifi')) return 'Networking';
+  if (text.includes('ssd') || text.includes('sandisk') || text.includes('crucial') || text.includes('enclosure') || text.includes('mouse') || text.includes('case')) return 'Accessories';
+  return 'Accessories';
+}
+
+function inferBrand(slug = '', title = ''): string {
+  if (brandMap[slug]) return brandMap[slug];
+  const text = `${slug} ${title}`.toLowerCase();
+  if (text.includes('dell')) return 'Dell';
+  if (text.includes('apple') || text.includes('macbook') || text.includes('iphone')) return 'Apple';
+  if (text.includes('google') || text.includes('pixel')) return 'Google';
+  if (text.includes('hp')) return 'HP';
+  if (text.includes('crucial')) return 'Crucial';
+  if (text.includes('sandisk')) return 'SanDisk';
+  if (text.includes('orico')) return 'Orico';
+  if (text.includes('starlink')) return 'Starlink';
+  return 'EagleTech';
+}
+
+function augmentProduct(p: any): Product {
+  return {
+    ...p,
+    category: p.category || inferCategory(p.slug, p.title),
+    brand: p.brand || inferBrand(p.slug, p.title),
+  };
+}
+
 interface ProductState {
   products: Product[];
   categories: string[];
@@ -17,16 +69,17 @@ export const useProductStore = create<ProductState>()(
   persist(
     (set, get) => ({
       products: [],
-      categories: ['All'],
+      categories: DEFAULT_CATEGORIES,
       isLoading: false,
       lastFetched: null,
 
       setProducts: (products: Product[]) => {
-        const rawCategories = products
+        const augmented = products.map(augmentProduct);
+        const dynamicCats = augmented
           .map((p) => p.category)
           .filter((c): c is string => Boolean(c));
-        const uniqueCategories = ['All', ...Array.from(new Set(rawCategories))];
-        set({ products, categories: uniqueCategories });
+        const mergedCategories = Array.from(new Set([...DEFAULT_CATEGORIES, ...dynamicCats]));
+        set({ products: augmented, categories: mergedCategories });
       },
 
       fetchProducts: async (force = false) => {
@@ -51,14 +104,15 @@ export const useProductStore = create<ProductState>()(
             .order('created_at', { ascending: false });
 
           if (!error && data && data.length > 0) {
-            const rawCategories = data
+            const augmented = data.map(augmentProduct);
+            const dynamicCats = augmented
               .map((p) => p.category)
               .filter((c): c is string => Boolean(c));
-            const uniqueCategories = ['All', ...Array.from(new Set(rawCategories))];
+            const mergedCategories = Array.from(new Set([...DEFAULT_CATEGORIES, ...dynamicCats]));
 
             set({
-              products: data,
-              categories: uniqueCategories,
+              products: augmented,
+              categories: mergedCategories,
               isLoading: false,
               lastFetched: now,
             });

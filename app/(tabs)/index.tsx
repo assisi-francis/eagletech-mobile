@@ -16,7 +16,9 @@ import {
   ShoppingCart,
   Search,
   X,
-  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
+  Sparkles,
   PackageOpen,
 } from 'lucide-react-native';
 import { useCartStore } from '../../store/useCartStore';
@@ -67,11 +69,26 @@ export default function ShopScreen() {
     setRefreshing(false);
   };
 
+  const handleCategorySelect = (category: string) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    setSelectedCategory(category);
+  };
+
+  const handleSortChange = (newSort: SortOption) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    setSortBy(newSort);
+  };
+
   const filteredProducts = useMemo(() => {
+    // 1. Filter by Category & Search Query
     const list = products.filter((item) => {
-      const matchesCategory =
-        selectedCategory === 'All' ||
-        (item.category && item.category.toLowerCase() === selectedCategory.toLowerCase());
+      const itemCat = (item.category || '').toLowerCase();
+      const targetCat = selectedCategory.toLowerCase();
+      const matchesCategory = selectedCategory === 'All' || itemCat === targetCat;
 
       const query = searchQuery.trim().toLowerCase();
       if (!query) return matchesCategory;
@@ -84,11 +101,12 @@ export default function ShopScreen() {
       return matchesCategory && (titleMatch || brandMatch || descMatch || catMatch);
     });
 
+    // 2. Sort by Selected Order
     if (sortBy === 'price-asc') {
-      return [...list].sort((a, b) => a.price - b.price);
+      return [...list].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
     }
     if (sortBy === 'price-desc') {
-      return [...list].sort((a, b) => b.price - a.price);
+      return [...list].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
     }
     return list;
   }, [products, selectedCategory, searchQuery, sortBy]);
@@ -131,7 +149,7 @@ export default function ShopScreen() {
             </Text>
 
             <View style={styles.footerRow}>
-              <Text style={styles.price}>₦{item.price?.toLocaleString()}</Text>
+              <Text style={styles.price}>₦{Number(item.price || 0).toLocaleString()}</Text>
 
               <TouchableOpacity
                 style={styles.addButton}
@@ -165,6 +183,7 @@ export default function ShopScreen() {
     <View style={styles.container}>
       <FlashList
         data={filteredProducts}
+        extraData={`${selectedCategory}-${sortBy}-${filteredProducts.length}`}
         keyExtractor={(item) => item.id}
         renderItem={renderProduct}
         numColumns={2}
@@ -203,7 +222,7 @@ export default function ShopScreen() {
               )}
             </View>
 
-            {/* Category Filter Pills */}
+            {/* Category Filter Pills (All, Laptops, Phones, etc.) */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -215,10 +234,7 @@ export default function ShopScreen() {
                   <TouchableOpacity
                     key={cat}
                     style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
-                    onPress={() => {
-                      try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch(e) {}
-                      setSelectedCategory(cat);
-                    }}
+                    onPress={() => handleCategorySelect(cat)}
                     activeOpacity={0.7}
                   >
                     <Text
@@ -234,32 +250,65 @@ export default function ShopScreen() {
               })}
             </ScrollView>
 
-            {/* Sort & Results Bar */}
+            {/* Sort & Results Bar (Featured, Price: Low, Price: High) */}
             <View style={styles.sortBar}>
               <View style={styles.sortPills}>
                 <TouchableOpacity
                   style={[styles.sortPill, sortBy === 'featured' && styles.sortPillActive]}
-                  onPress={() => setSortBy('featured')}
+                  onPress={() => handleSortChange('featured')}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.sortPillText, sortBy === 'featured' && styles.sortPillTextActive]}>
+                  <Sparkles
+                    size={11}
+                    color={sortBy === 'featured' ? '#ffffff' : '#64748b'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.sortPillText,
+                      sortBy === 'featured' && styles.sortPillTextActive,
+                    ]}
+                  >
                     Featured
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.sortPill, sortBy === 'price-asc' && styles.sortPillActive]}
-                  onPress={() => setSortBy('price-asc')}
+                  onPress={() => handleSortChange('price-asc')}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.sortPillText, sortBy === 'price-asc' && styles.sortPillTextActive]}>
+                  <ArrowDown
+                    size={11}
+                    color={sortBy === 'price-asc' ? '#ffffff' : '#64748b'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.sortPillText,
+                      sortBy === 'price-asc' && styles.sortPillTextActive,
+                    ]}
+                  >
                     Price: Low
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.sortPill, sortBy === 'price-desc' && styles.sortPillActive]}
-                  onPress={() => setSortBy('price-desc')}
+                  onPress={() => handleSortChange('price-desc')}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.sortPillText, sortBy === 'price-desc' && styles.sortPillTextActive]}>
+                  <ArrowUp
+                    size={11}
+                    color={sortBy === 'price-desc' ? '#ffffff' : '#64748b'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.sortPillText,
+                      sortBy === 'price-desc' && styles.sortPillTextActive,
+                    ]}
+                  >
                     Price: High
                   </Text>
                 </TouchableOpacity>
@@ -268,19 +317,29 @@ export default function ShopScreen() {
               {(searchQuery.length > 0 || selectedCategory !== 'All' || sortBy !== 'featured') && (
                 <TouchableOpacity
                   onPress={() => {
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch (e) {}
                     setSearchQuery('');
                     setSelectedCategory('All');
                     setSortBy('featured');
                   }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.resetText}>Reset</Text>
+                  <Text style={styles.resetText}>Reset All</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             {/* Results Count */}
             <Text style={styles.metaText}>
-              {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}{' '}
+              {selectedCategory !== 'All' ? `in ${selectedCategory}` : ''}
+              {sortBy === 'price-asc'
+                ? ' • Lowest Price First'
+                : sortBy === 'price-desc'
+                ? ' • Highest Price First'
+                : ''}
             </Text>
           </View>
         }
@@ -296,6 +355,9 @@ export default function ShopScreen() {
             <TouchableOpacity
               style={styles.clearFiltersBtn}
               onPress={() => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                } catch (e) {}
                 setSearchQuery('');
                 setSelectedCategory('All');
                 setSortBy('featured');
@@ -407,13 +469,18 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 8,
     backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   sortPillActive: {
     backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
   sortPillText: {
     fontSize: 11,
@@ -430,7 +497,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   resetText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#2563eb',
   },
