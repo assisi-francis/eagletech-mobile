@@ -88,7 +88,10 @@ export default function ShopScreen() {
     const list = products.filter((item) => {
       const itemCat = (item.category || '').toLowerCase();
       const targetCat = selectedCategory.toLowerCase();
-      const matchesCategory = selectedCategory === 'All' || itemCat === targetCat;
+      let matchesCategory = selectedCategory === 'All' || itemCat === targetCat;
+      if (!matchesCategory && targetCat === 'accessories' && itemCat === 'storage') {
+        matchesCategory = true;
+      }
 
       const query = searchQuery.trim().toLowerCase();
       if (!query) return matchesCategory;
@@ -222,10 +225,14 @@ export default function ShopScreen() {
               )}
             </View>
 
-            {/* Category Filter Pills (All, Laptops, Phones, etc.) */}
+            {/* Category Filter Pills (All, Laptops, Phones, Accessories, Networking, Storage) */}
             <ScrollView
               horizontal
+              nestedScrollEnabled={true}
               showsHorizontalScrollIndicator={false}
+              directionalLockEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              style={styles.categoriesScrollView}
               contentContainerStyle={styles.categoriesContainer}
             >
               {categories.map((cat) => {
@@ -432,11 +439,16 @@ const styles = StyleSheet.create({
   clearBtn: {
     padding: 4,
   },
+  categoriesScrollView: {
+    marginHorizontal: -8,
+    marginBottom: 10,
+  },
   categoriesContainer: {
     flexDirection: 'row',
     gap: 8,
+    paddingHorizontal: 8,
+    paddingRight: 24,
     paddingVertical: 2,
-    marginBottom: 10,
   },
   categoryPill: {
     paddingHorizontal: 14,

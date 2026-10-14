@@ -4,13 +4,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product } from '../types';
 import { supabase } from '../lib/supabase';
 
-const DEFAULT_CATEGORIES = ['All', 'Laptops', 'Phones', 'Accessories', 'Networking'];
+const DEFAULT_CATEGORIES = ['All', 'Laptops', 'Phones', 'Accessories', 'Networking', 'Storage'];
 
 const categoryMap: Record<string, string> = {
   'dell-xps-15': 'Laptops',
   'google-pixel-8-pro': 'Phones',
-  'crucial-x9-pro': 'Accessories',
-  'sandisk-ultra-1tb': 'Accessories',
+  'crucial-x9-pro': 'Storage',
+  'sandisk-ultra-1tb': 'Storage',
   'orico-enclosure': 'Accessories',
   'starlink-standard': 'Networking',
 };
@@ -30,7 +30,8 @@ function inferCategory(slug = '', title = ''): string {
   if (text.includes('laptop') || text.includes('macbook') || text.includes('xps') || text.includes('spectre')) return 'Laptops';
   if (text.includes('phone') || text.includes('pixel') || text.includes('iphone') || text.includes('samsung')) return 'Phones';
   if (text.includes('starlink') || text.includes('router') || text.includes('network') || text.includes('wifi')) return 'Networking';
-  if (text.includes('ssd') || text.includes('sandisk') || text.includes('crucial') || text.includes('enclosure') || text.includes('mouse') || text.includes('case')) return 'Accessories';
+  if (text.includes('ssd') || text.includes('sandisk') || text.includes('crucial') || text.includes('storage') || text.includes('drive')) return 'Storage';
+  if (text.includes('enclosure') || text.includes('mouse') || text.includes('case') || text.includes('cable') || text.includes('adapter')) return 'Accessories';
   return 'Accessories';
 }
 
