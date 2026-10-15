@@ -111,20 +111,33 @@ export default function AuthScreen() {
     }
   };
 
+  const getFriendlyError = (err: any) => {
+    const msg = err?.message || String(err || '');
+    if (
+      msg.includes('UnknownHostException') ||
+      msg.includes('fetch failed') ||
+      msg.includes('Network request failed') ||
+      msg.includes('Failed to fetch')
+    ) {
+      return 'Unable to connect to the server. Please check your phone\'s internet connection (or Private DNS settings) and try again.';
+    }
+    return msg;
+  };
+
   const handleAuth = async () => {
     if (!email || !password) return Alert.alert('Error', 'Please enter email and password');
 
     setLoading(true);
 
     if (view === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) {
-        Alert.alert('Error', error.message);
+        Alert.alert('Sign In Failed', getFriendlyError(error));
       } else {
         // Automatically save for biometrics on successful login
         const supported = await isBiometricSupported();
         if (supported) {
-          await saveBiometricCredentials(email, password);
+          await saveBiometricCredentials(email.trim(), password);
           await setBiometricEnabled(true);
         }
       }
@@ -135,21 +148,21 @@ export default function AuthScreen() {
       }
 
       const { error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
           },
         },
       });
 
       if (error) {
-        Alert.alert('Error', error.message);
+        Alert.alert('Sign Up Failed', getFriendlyError(error));
       } else {
         const supported = await isBiometricSupported();
         if (supported) {
-          await saveBiometricCredentials(email, password);
+          await saveBiometricCredentials(email.trim(), password);
           await setBiometricEnabled(true);
         }
       }
