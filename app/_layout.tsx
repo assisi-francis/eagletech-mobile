@@ -1,5 +1,9 @@
 import { LogBox } from 'react-native';
-LogBox.ignoreLogs(['WebCrypto API is not supported']);
+LogBox.ignoreLogs([
+  'WebCrypto API is not supported',
+  'AuthRetryableFetchError',
+  'UnknownHostException',
+]);
 import 'react-native-get-random-values';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
