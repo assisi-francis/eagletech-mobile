@@ -8,6 +8,7 @@ import {
   TextInput,
   ScrollView,
   Linking,
+  Dimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
@@ -26,6 +27,7 @@ import {
   Lock,
   RotateCcw,
   MessageCircle,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useCartStore } from '../../store/useCartStore';
 import { useProductStore } from '../../store/useProductStore';
@@ -33,6 +35,42 @@ import { ProductSkeleton } from '../../components/ProductSkeleton';
 import { Toast } from '../../components/Toast';
 
 type SortOption = 'featured' | 'price-asc' | 'price-desc';
+
+const HERO_BANNERS = [
+  {
+    id: 'starlink',
+    badge: 'POPULAR HARDWARE',
+    title: 'Starlink Standard Kit',
+    subtitle: 'High-speed satellite internet in stock with nationwide dispatch',
+    tag: 'From ₦599,000',
+    category: 'Networking',
+    icon: Sparkles,
+    gradientColors: ['#0f172a', '#1e293b'],
+    accentColor: '#38bdf8',
+  },
+  {
+    id: 'laptops',
+    badge: '1-YEAR WARRANTY',
+    title: 'Pro Laptops & Workstations',
+    subtitle: 'MacBooks, Dell XPS & ThinkPads verified with authentic warranty',
+    tag: 'Top Performance',
+    category: 'Laptops',
+    icon: Sparkles,
+    gradientColors: ['#1e1b4b', '#1e3a8a'],
+    accentColor: '#60a5fa',
+  },
+  {
+    id: 'freeship',
+    badge: 'NATIONWIDE OFFER',
+    title: 'Free Shipping on ₦1M+',
+    subtitle: 'Safe, insured doorstep courier to all 36 states across Nigeria',
+    tag: 'Auto-Applied',
+    category: 'All',
+    icon: Truck,
+    gradientColors: ['#064e3b', '#0f172a'],
+    accentColor: '#34d399',
+  },
+];
 
 export default function ShopScreen() {
   const router = useRouter();
@@ -45,9 +83,26 @@ export default function ShopScreen() {
   const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const heroScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     fetchProducts();
+  }, []);
+
+  // Auto-slide hero banner every 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveHeroIndex((prev) => {
+        const next = (prev + 1) % HERO_BANNERS.length;
+        heroScrollRef.current?.scrollTo({
+          x: next * (Dimensions.get('window').width - 16),
+          animated: true,
+        });
+        return next;
+      });
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
 
   const onRefresh = async () => {
@@ -373,6 +428,88 @@ export default function ShopScreen() {
                   <X size={16} color="#64748b" />
                 </TouchableOpacity>
               )}
+            </View>
+
+            {/* Hero Promo Banner Carousel */}
+            <View style={styles.heroCarouselContainer}>
+              <ScrollView
+                ref={heroScrollRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                onMomentumScrollEnd={(e) => {
+                  const slideWidth = Dimensions.get('window').width - 16;
+                  const newIndex = Math.round(e.nativeEvent.contentOffset.x / slideWidth);
+                  setActiveHeroIndex(newIndex);
+                }}
+              >
+                {HERO_BANNERS.map((banner) => {
+                  const IconComp = banner.icon;
+                  return (
+                    <TouchableOpacity
+                      key={banner.id}
+                      style={[
+                        styles.heroBannerCard,
+                        { backgroundColor: banner.gradientColors[0] },
+                      ]}
+                      activeOpacity={0.9}
+                      onPress={() => {
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        } catch (e) {}
+                        if (banner.category !== 'All') {
+                          setSelectedCategory(banner.category);
+                        }
+                      }}
+                    >
+                      <View style={styles.heroCardContent}>
+                        <View
+                          style={[
+                            styles.heroBadge,
+                            { borderColor: banner.accentColor },
+                          ]}
+                        >
+                          <IconComp size={10} color={banner.accentColor} style={{ marginRight: 4 }} />
+                          <Text style={[styles.heroBadgeText, { color: banner.accentColor }]}>
+                            {banner.badge}
+                          </Text>
+                        </View>
+                        <Text style={styles.heroTitle} numberOfLines={1}>
+                          {banner.title}
+                        </Text>
+                        <Text style={styles.heroSubtitle} numberOfLines={2}>
+                          {banner.subtitle}
+                        </Text>
+                        <View style={styles.heroTagRow}>
+                          <View style={styles.heroTagPill}>
+                            <Text style={styles.heroTagText}>{banner.tag}</Text>
+                          </View>
+                          <View style={styles.heroExploreRow}>
+                            <Text style={[styles.heroExploreText, { color: banner.accentColor }]}>
+                              Explore
+                            </Text>
+                            <ChevronRight size={13} color={banner.accentColor} />
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Indicator Dots */}
+              <View style={styles.heroDotsContainer}>
+                {HERO_BANNERS.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.heroDot,
+                      i === activeHeroIndex && styles.heroDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
 
             {/* Category Filter Pills (All, Laptops, Phones, Accessories, Networking, Storage) */}
@@ -1017,5 +1154,98 @@ const styles = StyleSheet.create({
   footerLocation: {
     fontSize: 10,
     color: '#cbd5e1',
+  },
+
+  /* Hero Promo Banner Carousel */
+  heroCarouselContainer: {
+    marginBottom: 14,
+  },
+  heroBannerCard: {
+    width: Dimensions.get('window').width - 24,
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  heroCardContent: {
+    flex: 1,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  heroBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#ffffff',
+    marginBottom: 4,
+    letterSpacing: -0.3,
+  },
+  heroSubtitle: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    lineHeight: 15,
+    marginBottom: 10,
+  },
+  heroTagRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  heroTagPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  heroTagText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  heroExploreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroExploreText: {
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 2,
+  },
+  heroDotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 5,
+  },
+  heroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#cbd5e1',
+  },
+  heroDotActive: {
+    width: 18,
+    backgroundColor: '#2563eb',
   },
 });

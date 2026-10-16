@@ -1,12 +1,66 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useCartStore, syncCartFromSupabase } from '../../store/useCartStore';
-import { Minus, Plus, Trash2, ShoppingCart, ShieldCheck, Truck, ArrowLeft, CreditCard } from 'lucide-react-native';
+import {
+  Minus,
+  Plus,
+  Trash2,
+  ShoppingCart,
+  ShieldCheck,
+  Truck,
+  ArrowLeft,
+  CreditCard,
+  Tag,
+  X,
+  CheckCircle2,
+} from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { usePaystack } from 'react-native-paystack-webview';
 import { useRouter } from 'expo-router';
+
+interface Coupon {
+  code: string;
+  description: string;
+  type: 'percentage' | 'fixed' | 'free_shipping';
+  value: number;
+  minSpend?: number;
+}
+
+const PROMO_CODES: Record<string, Coupon> = {
+  WELCOME10: {
+    code: 'WELCOME10',
+    description: '10% off entire order',
+    type: 'percentage',
+    value: 10,
+  },
+  EAGLE5K: {
+    code: 'EAGLE5K',
+    description: '₦5,000 flat voucher discount',
+    type: 'fixed',
+    value: 5000,
+    minSpend: 20000,
+  },
+  FREESHIP: {
+    code: 'FREESHIP',
+    description: '100% Free Nationwide Delivery',
+    type: 'free_shipping',
+    value: 0,
+  },
+};
 
 export default function CartScreen() {
   const { items, updateQuantity, removeItem, getTotal, clearCart } = useCartStore();
@@ -17,13 +71,18 @@ export default function CartScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
+  // Promo Code State
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     address: '',
     city: '',
-    state: ''
+    state: '',
   });
 
   useEffect(() => {
@@ -31,10 +90,10 @@ export default function CartScreen() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           email: session.user.email || '',
-          fullName: session.user.user_metadata?.full_name || ''
+          fullName: session.user.user_metadata?.full_name || '',
         }));
       }
     });
@@ -50,8 +109,64 @@ export default function CartScreen() {
   };
 
   const totalAmount = getTotal();
-  const shippingCost = totalAmount >= 1000000 ? 0 : 15000;
-  const finalTotal = totalAmount + shippingCost;
+  const baseShippingCost = totalAmount >= 1000000 ? 0 : 15000;
+
+  // Calculate Discount & Final Shipping
+  let discountAmount = 0;
+  let shippingCost = baseShippingCost;
+
+  if (appliedCoupon) {
+    if (appliedCoupon.type === 'percentage') {
+      discountAmount = Math.round((totalAmount * appliedCoupon.value) / 100);
+    } else if (appliedCoupon.type === 'fixed') {
+      discountAmount = Math.min(totalAmount, appliedCoupon.value);
+    } else if (appliedCoupon.type === 'free_shipping') {
+      shippingCost = 0;
+      discountAmount = baseShippingCost;
+    }
+  }
+
+  const finalTotal = Math.max(
+    0,
+    totalAmount - (appliedCoupon?.type !== 'free_shipping' ? discountAmount : 0) + shippingCost
+  );
+
+  const handleApplyCoupon = (codeToApply?: string) => {
+    const code = (codeToApply || couponInput).trim().toUpperCase();
+    if (!code) return;
+    setCouponError('');
+
+    const found = PROMO_CODES[code];
+    if (!found) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } catch (e) {}
+      setCouponError('Invalid promo code. Try WELCOME10 or EAGLE5K');
+      return;
+    }
+
+    if (found.minSpend && totalAmount < found.minSpend) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      } catch (e) {}
+      setCouponError(`Requires minimum order of ₦${found.minSpend.toLocaleString()}`);
+      return;
+    }
+
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {}
+    setAppliedCoupon(found);
+    setCouponInput('');
+  };
+
+  const handleRemoveCoupon = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    setAppliedCoupon(null);
+    setCouponError('');
+  };
 
   const handleCheckoutSubmit = async () => {
     if (placingOrder) return;
@@ -60,7 +175,9 @@ export default function CartScreen() {
       return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.user) {
       Alert.alert('Error', 'Please sign in to place an order');
       router.push('/auth');
@@ -70,9 +187,7 @@ export default function CartScreen() {
     setPlacingOrder(true);
     const paystackReference = `TXN_${new Date().getTime()}`;
 
-    // Mirror the web app: persist a PENDING order before opening Paystack so the
-    // purchase shows up in order history, and the web app's Paystack webhook can
-    // confirm it by matching paystack_reference later.
+    // Record order in Supabase with exact discounted total
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -88,13 +203,13 @@ export default function CartScreen() {
 
     if (orderError || !order) {
       setPlacingOrder(false);
-      Alert.alert('Checkout Error', orderError?.message || 'Could not create your order. Please try again.');
+      Alert.alert(
+        'Checkout Error',
+        orderError?.message || 'Could not create your order. Please try again.'
+      );
       return;
     }
 
-    // Best effort, same as the web app: order_items.product_id is a uuid column
-    // and the mock catalog IDs ("l1") cannot satisfy it, so this fails until
-    // real products are seeded — the order itself is already recorded.
     const { error: itemsError } = await supabase.from('order_items').insert(
       items.map((item) => ({
         order_id: order.id,
@@ -105,20 +220,17 @@ export default function CartScreen() {
     );
     if (itemsError) console.warn('order_items insert failed:', itemsError.message);
 
-    // Hide modal so the Paystack webview can present over it cleanly
     setShowCheckout(false);
 
     popup.checkout({
       email: formData.email,
-      amount: finalTotal, // naira; the library converts to kobo (x100)
+      amount: finalTotal, // Naira amount passed directly
       reference: paystackReference,
       onSuccess: async () => {
         try {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {}
 
-        // Confirm locally as well; the shared Paystack webhook may also flip
-        // payment_status by matching this reference.
         const { error: confirmError } = await supabase
           .from('orders')
           .update({ payment_status: 'SUCCESSFUL', order_status: 'PROCESSING' })
@@ -126,8 +238,9 @@ export default function CartScreen() {
         if (confirmError) console.warn('Failed to confirm order payment:', confirmError.message);
 
         clearCart();
+        setAppliedCoupon(null);
         setPlacingOrder(false);
-        Alert.alert('Success!', `Payment successful! Ref: ${paystackReference}`);
+        Alert.alert('Success!', `Payment successful! Order Ref: ${paystackReference}`);
         router.replace('/(tabs)');
       },
       onCancel: () => {
@@ -139,8 +252,10 @@ export default function CartScreen() {
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
-      <Image 
-        source={{ uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150' }} 
+      <Image
+        source={{
+          uri: item.images?.[0] || item.image_urls?.[0] || 'https://via.placeholder.com/150',
+        }}
         style={styles.image}
         contentFit="cover"
         transition={150}
@@ -148,29 +263,39 @@ export default function CartScreen() {
       />
       <View style={styles.details}>
         <View>
-          <Text style={styles.name} numberOfLines={1}>{item.title || item.name}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.title || item.name}
+          </Text>
           <Text style={styles.brand}>{item.brand || 'EagleTech'}</Text>
         </View>
-        
+
         <View style={styles.priceRow}>
           <Text style={styles.price}>₦{(item.price * item.cartQuantity).toLocaleString()}</Text>
           <View style={styles.qtyContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
-                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (e) {}
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                } catch (e) {}
                 if (item.cartQuantity > 1) updateQuantity(item.id, item.cartQuantity - 1);
                 else removeItem(item.id);
-              }} 
+              }}
               style={styles.btn}
             >
-              {item.cartQuantity === 1 ? <Trash2 size={14} color="#ef4444" /> : <Minus size={14} color="#0f172a" />}
+              {item.cartQuantity === 1 ? (
+                <Trash2 size={14} color="#ef4444" />
+              ) : (
+                <Minus size={14} color="#0f172a" />
+              )}
             </TouchableOpacity>
             <Text style={styles.qty}>{item.cartQuantity}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
-                try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (e) {}
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                } catch (e) {}
                 updateQuantity(item.id, item.cartQuantity + 1);
-              }} 
+              }}
               style={styles.btn}
             >
               <Plus size={14} color="#0f172a" />
@@ -185,18 +310,33 @@ export default function CartScreen() {
     <View style={styles.container}>
       {/* Free Shipping Progress */}
       <View style={styles.shippingBanner}>
-        {totalAmount >= 1000000 ? (
+        {totalAmount >= 1000000 || (appliedCoupon && appliedCoupon.type === 'free_shipping') ? (
           <View style={styles.shippingRow}>
             <ShieldCheck color="#10b981" size={16} />
             <Text style={styles.shippingSuccess}>Free Premium Shipping Unlocked</Text>
           </View>
         ) : (
           <Text style={styles.shippingText}>
-            Add <Text style={styles.shippingHighlight}>₦{(1000000 - totalAmount).toLocaleString()}</Text> more for Free Shipping
+            Add{' '}
+            <Text style={styles.shippingHighlight}>
+              ₦{(1000000 - totalAmount).toLocaleString()}
+            </Text>{' '}
+            more for Free Shipping
           </Text>
         )}
         <View style={styles.progressBg}>
-          <View style={[styles.progressFill, { width: `${Math.min((totalAmount / 1000000) * 100, 100)}%`, backgroundColor: totalAmount >= 1000000 ? '#10b981' : '#3b82f6' }]} />
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${Math.min((totalAmount / 1000000) * 100, 100)}%`,
+                backgroundColor:
+                  totalAmount >= 1000000 || appliedCoupon?.type === 'free_shipping'
+                    ? '#10b981'
+                    : '#2563eb',
+              },
+            ]}
+          />
         </View>
       </View>
 
@@ -209,66 +349,231 @@ export default function CartScreen() {
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconBg}><ShoppingCart color="#94a3b8" size={32} /></View>
+            <View style={styles.emptyIconBg}>
+              <ShoppingCart color="#94a3b8" size={32} />
+            </View>
             <Text style={styles.empty}>Your cart is empty.</Text>
           </View>
         }
+        ListFooterComponent={
+          items.length > 0 ? (
+            <View style={styles.promoSection}>
+              <Text style={styles.promoTitle}>PROMO CODE & VOUCHERS</Text>
+
+              {appliedCoupon ? (
+                <View style={styles.appliedPill}>
+                  <View style={styles.appliedPillLeft}>
+                    <CheckCircle2 size={16} color="#10b981" style={{ marginRight: 6 }} />
+                    <View>
+                      <Text style={styles.appliedCodeText}>{appliedCoupon.code} Applied</Text>
+                      <Text style={styles.appliedDescText}>{appliedCoupon.description}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleRemoveCoupon}
+                    style={styles.removeCouponBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={15} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View>
+                  <View style={styles.couponInputRow}>
+                    <Tag size={16} color="#94a3b8" style={{ marginLeft: 12, marginRight: 8 }} />
+                    <TextInput
+                      style={styles.couponInput}
+                      placeholder="Enter promo code (e.g. WELCOME10)"
+                      placeholderTextColor="#94a3b8"
+                      value={couponInput}
+                      onChangeText={(t) => {
+                        setCouponInput(t);
+                        setCouponError('');
+                      }}
+                      autoCapitalize="characters"
+                      returnKeyType="done"
+                      onSubmitEditing={() => handleApplyCoupon()}
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.applyBtn,
+                        !couponInput.trim() && styles.applyBtnDisabled,
+                      ]}
+                      disabled={!couponInput.trim()}
+                      onPress={() => handleApplyCoupon()}
+                    >
+                      <Text style={styles.applyBtnText}>Apply</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {couponError ? <Text style={styles.couponErrorText}>{couponError}</Text> : null}
+
+                  {/* Quick coupon hint pills */}
+                  <View style={styles.hintsRow}>
+                    <Text style={styles.hintLabel}>Tap to try:</Text>
+                    {['WELCOME10', 'EAGLE5K', 'FREESHIP'].map((code) => (
+                      <TouchableOpacity
+                        key={code}
+                        style={styles.hintPill}
+                        onPress={() => handleApplyCoupon(code)}
+                      >
+                        <Text style={styles.hintPillText}>{code}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          ) : null
+        }
       />
-      
+
       {items.length > 0 && (
         <View style={styles.footer}>
+          {/* Summary Breakdown */}
+          {appliedCoupon && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Subtotal</Text>
+              <Text style={styles.breakdownVal}>₦{totalAmount.toLocaleString()}</Text>
+            </View>
+          )}
+
+          {appliedCoupon && discountAmount > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.discountLabel}>Discount ({appliedCoupon.code})</Text>
+              <Text style={styles.discountVal}>-₦{discountAmount.toLocaleString()}</Text>
+            </View>
+          )}
+
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalPrice}>₦{totalAmount.toLocaleString()}</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.totalPrice}>₦{finalTotal.toLocaleString()}</Text>
+              {appliedCoupon && (
+                <Text style={styles.originalPriceCrossed}>
+                  ₦{(totalAmount + baseShippingCost).toLocaleString()}
+                </Text>
+              )}
+            </View>
           </View>
-          <TouchableOpacity style={styles.checkoutBtn} onPress={() => setShowCheckout(true)}>
+
+          <TouchableOpacity
+            style={styles.checkoutBtn}
+            onPress={() => setShowCheckout(true)}
+            activeOpacity={0.85}
+          >
             <Text style={styles.checkoutText}>Secure Checkout</Text>
           </TouchableOpacity>
           <View style={styles.secureRow}>
             <ShieldCheck color="#10b981" size={14} />
-            <Text style={styles.secureText}>Secured with 256-bit Encryption</Text>
+            <Text style={styles.secureText}>Secured with Paystack 256-bit Encryption</Text>
           </View>
         </View>
       )}
 
       {/* Checkout Modal */}
       <Modal visible={showCheckout} animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCheckout(false)} style={styles.iconBtn}>
               <ArrowLeft color="#0f172a" size={24} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Checkout</Text>
-            <View style={{width: 40}} />
+            <View style={{ width: 40 }} />
           </View>
-          
-          <ScrollView contentContainerStyle={styles.modalScroll}>
+
+          <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
             <View style={styles.summaryBox}>
               <Text style={styles.summaryTitle}>Order Summary</Text>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryVal}>₦{totalAmount.toLocaleString()}</Text></View>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Shipping</Text><Text style={styles.summaryVal}>{shippingCost === 0 ? 'Free' : `₦${shippingCost.toLocaleString()}`}</Text></View>
-              <View style={[styles.summaryRow, styles.summaryTotalRow]}><Text style={styles.summaryTotalLabel}>Total</Text><Text style={styles.summaryTotalVal}>₦{finalTotal.toLocaleString()}</Text></View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryVal}>₦{totalAmount.toLocaleString()}</Text>
+              </View>
+              {appliedCoupon && (
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: '#10b981', fontWeight: '700' }]}>
+                    Promo Discount ({appliedCoupon.code})
+                  </Text>
+                  <Text style={[styles.summaryVal, { color: '#10b981', fontWeight: '700' }]}>
+                    -₦{discountAmount.toLocaleString()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Shipping</Text>
+                <Text style={styles.summaryVal}>
+                  {shippingCost === 0 ? 'Free' : `₦${shippingCost.toLocaleString()}`}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, styles.summaryTotalRow]}>
+                <Text style={styles.summaryTotalLabel}>Final Amount</Text>
+                <Text style={styles.summaryTotalVal}>₦{finalTotal.toLocaleString()}</Text>
+              </View>
             </View>
 
             <Text style={styles.formTitle}>Shipping Details</Text>
-            <TextInput style={styles.input} placeholder="Full Name" value={formData.fullName} onChangeText={(t) => setFormData({...formData, fullName: t})} />
-            <TextInput style={styles.input} placeholder="Email" value={formData.email} onChangeText={(t) => setFormData({...formData, email: t})} keyboardType="email-address" />
-            <TextInput style={styles.input} placeholder="Phone Number" value={formData.phone} onChangeText={(t) => setFormData({...formData, phone: t})} keyboardType="phone-pad" />
-            <TextInput style={styles.input} placeholder="Delivery Address" value={formData.address} onChangeText={(t) => setFormData({...formData, address: t})} />
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              placeholderTextColor="#94a3b8"
+              value={formData.fullName}
+              onChangeText={(t) => setFormData({ ...formData, fullName: t })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Email address"
+              placeholderTextColor="#94a3b8"
+              value={formData.email}
+              onChangeText={(t) => setFormData({ ...formData, email: t })}
+              keyboardType="email-address"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number"
+              placeholderTextColor="#94a3b8"
+              value={formData.phone}
+              onChangeText={(t) => setFormData({ ...formData, phone: t })}
+              keyboardType="phone-pad"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Delivery Street Address"
+              placeholderTextColor="#94a3b8"
+              value={formData.address}
+              onChangeText={(t) => setFormData({ ...formData, address: t })}
+            />
             <View style={styles.rowInputs}>
-              <TextInput style={[styles.input, {flex: 1, marginRight: 10}]} placeholder="City" value={formData.city} onChangeText={(t) => setFormData({...formData, city: t})} />
-              <TextInput style={[styles.input, {flex: 1}]} placeholder="State" value={formData.state} onChangeText={(t) => setFormData({...formData, state: t})} />
+              <TextInput
+                style={[styles.input, { flex: 1, marginRight: 10 }]}
+                placeholder="City"
+                placeholderTextColor="#94a3b8"
+                value={formData.city}
+                onChangeText={(t) => setFormData({ ...formData, city: t })}
+              />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="State"
+                placeholderTextColor="#94a3b8"
+                value={formData.state}
+                onChangeText={(t) => setFormData({ ...formData, state: t })}
+              />
             </View>
-            
-            <TouchableOpacity style={styles.payBtn} onPress={handleCheckoutSubmit} disabled={placingOrder}>
-              <CreditCard color="#fff" size={20} style={{marginRight: 8}} />
-              <Text style={styles.payBtnText}>{placingOrder ? 'Placing Order...' : `Pay ₦${finalTotal.toLocaleString()}`}</Text>
+
+            <TouchableOpacity
+              style={styles.payBtn}
+              onPress={handleCheckoutSubmit}
+              disabled={placingOrder}
+            >
+              <CreditCard color="#fff" size={20} style={{ marginRight: 8 }} />
+              <Text style={styles.payBtnText}>
+                {placingOrder ? 'Processing...' : `Pay ₦${finalTotal.toLocaleString()} with Paystack`}
+              </Text>
             </TouchableOpacity>
-            <View style={{height: 40}} />
           </ScrollView>
         </KeyboardAvoidingView>
-
-        
       </Modal>
     </View>
   );
@@ -276,59 +581,335 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
-  shippingBanner: { backgroundColor: 'rgba(59, 130, 246, 0.05)', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  shippingText: { fontSize: 13, fontWeight: 'bold', color: '#0f172a', marginBottom: 8 },
-  shippingHighlight: { color: '#3b82f6' },
+  shippingBanner: {
+    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  shippingText: { fontSize: 13, fontWeight: '700', color: '#0f172a', marginBottom: 8 },
+  shippingHighlight: { color: '#2563eb' },
   shippingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  shippingSuccess: { fontSize: 13, fontWeight: 'bold', color: '#10b981', marginLeft: 6 },
+  shippingSuccess: { fontSize: 13, fontWeight: '700', color: '#10b981', marginLeft: 6 },
   progressBg: { height: 6, backgroundColor: '#e2e8f0', borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
-  
-  list: { padding: 16 },
+
+  list: { padding: 16, paddingBottom: 20 },
   emptyContainer: { alignItems: 'center', marginTop: 80, opacity: 0.7 },
-  emptyIconBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  emptyIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   empty: { fontSize: 16, fontWeight: 'bold', color: '#64748b' },
-  
-  cartItem: { flexDirection: 'row', backgroundColor: '#fff', padding: 12, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f1f5f9', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+
+  cartItem: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   image: { width: 70, height: 70, borderRadius: 12, backgroundColor: '#f1f5f9' },
   details: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
   name: { fontSize: 14, fontWeight: 'bold', color: '#0f172a' },
   brand: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  price: { color: '#3b82f6', fontWeight: '900', fontSize: 15 },
-  
-  qtyContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, padding: 2, borderWidth: 1, borderColor: '#f1f5f9' },
-  btn: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  price: { color: '#2563eb', fontWeight: '900', fontSize: 15 },
+
+  qtyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 20,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  btn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   qty: { fontSize: 14, fontWeight: 'bold', width: 24, textAlign: 'center' },
-  
-  footer: { padding: 20, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#f1f5f9', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 10 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+
+  /* Promo Section */
+  promoSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  promoTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  couponInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+  },
+  couponInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    paddingRight: 10,
+  },
+  applyBtn: {
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 16,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  applyBtnDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  applyBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  couponErrorText: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  hintsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 10,
+    gap: 6,
+  },
+  hintLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  hintPill: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  hintPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2563eb',
+  },
+  appliedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  appliedPillLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  appliedCodeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#065f46',
+  },
+  appliedDescText: {
+    fontSize: 11,
+    color: '#047857',
+    marginTop: 1,
+  },
+  removeCouponBtn: {
+    padding: 4,
+  },
+
+  /* Footer & Total */
+  footer: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  breakdownLabel: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  breakdownVal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  discountLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#10b981',
+  },
+  discountVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#10b981',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 4,
+  },
   totalLabel: { fontSize: 16, fontWeight: 'bold', color: '#0f172a' },
-  totalPrice: { fontSize: 24, fontWeight: '900', color: '#3b82f6' },
-  checkoutBtn: { backgroundColor: '#0f172a', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#0f172a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  checkoutText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  secureRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12, opacity: 0.6 },
+  totalPrice: { fontSize: 24, fontWeight: '900', color: '#2563eb' },
+  originalPriceCrossed: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textDecorationLine: 'line-through',
+    marginTop: 2,
+  },
+  checkoutBtn: {
+    backgroundColor: '#0f172a',
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  checkoutText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  secureRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+    opacity: 0.7,
+  },
   secureText: { fontSize: 11, fontWeight: '600', color: '#0f172a', marginLeft: 4 },
-  
+
   // Modal Styles
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a' },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 54,
+    paddingBottom: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: '#0f172a' },
   modalScroll: { padding: 20 },
-  
-  summaryBox: { backgroundColor: '#f8fafc', padding: 16, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: '#f1f5f9' },
-  summaryTitle: { fontSize: 16, fontWeight: 'bold', color: '#0f172a', marginBottom: 12 },
+
+  summaryBox: {
+    backgroundColor: '#f8fafc',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  summaryTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a', marginBottom: 12 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  summaryLabel: { color: '#64748b', fontSize: 14 },
-  summaryVal: { fontWeight: '600', color: '#0f172a', fontSize: 14 },
-  summaryTotalRow: { marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
-  summaryTotalLabel: { fontWeight: 'bold', color: '#0f172a', fontSize: 16 },
-  summaryTotalVal: { fontWeight: '900', color: '#3b82f6', fontSize: 18 },
-  
-  formTitle: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 16 },
-  input: { backgroundColor: '#fff', height: 50, borderRadius: 12, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0', fontSize: 15 },
-  rowInputs: { flexDirection: 'row', marginBottom: 24 },
-  
-  payBtn: { backgroundColor: '#3b82f6', flexDirection: 'row', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  payBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  summaryLabel: { color: '#64748b', fontSize: 13 },
+  summaryVal: { fontWeight: '600', color: '#0f172a', fontSize: 13 },
+  summaryTotalRow: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  summaryTotalLabel: { fontWeight: 'bold', color: '#0f172a', fontSize: 15 },
+  summaryTotalVal: { fontWeight: '900', color: '#2563eb', fontSize: 18 },
+
+  formTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', marginBottom: 14 },
+  input: {
+    backgroundColor: '#fff',
+    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 14,
+    color: '#0f172a',
+  },
+  rowInputs: { flexDirection: 'row', marginBottom: 20 },
+
+  payBtn: {
+    backgroundColor: '#2563eb',
+    flexDirection: 'row',
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  payBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });
