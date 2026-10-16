@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TextInput,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
@@ -20,6 +21,11 @@ import {
   ArrowUp,
   Sparkles,
   PackageOpen,
+  Truck,
+  ShieldCheck,
+  Lock,
+  RotateCcw,
+  MessageCircle,
 } from 'lucide-react-native';
 import { useCartStore } from '../../store/useCartStore';
 import { useProductStore } from '../../store/useProductStore';
@@ -114,10 +120,152 @@ export default function ShopScreen() {
     return list;
   }, [products, selectedCategory, searchQuery, sortBy]);
 
+  const listRef = useRef<any>(null);
+
+  const handleWhatsAppSupport = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (e) {}
+
+    const message = encodeURIComponent(
+      'Hello EagleTech! I am browsing the mobile app and would like to inquire about gadget recommendations and availability.'
+    );
+    const whatsappUrl = `https://wa.me/2348000000000?text=${message}`;
+
+    try {
+      const supported = await Linking.canOpenURL(whatsappUrl);
+      if (supported) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        await Linking.openURL(`https://wa.me/?text=${message}`);
+      }
+    } catch (e) {
+      Linking.openURL(`https://wa.me/?text=${message}`).catch(() => {});
+    }
+  };
+
+  const handleBackToTop = () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
+
   const handleAddToCart = (item: any) => {
     addItem(item, 1);
     setToastMessage(`${item.title || item.name || 'Item'} added to cart`);
     setShowToast(true);
+  };
+
+  const renderListFooter = () => {
+    if (filteredProducts.length === 0) return null;
+
+    return (
+      <View style={styles.footerWrapper}>
+        {/* 1. Value & Trust Guarantee Strip */}
+        <View style={styles.trustCard}>
+          <Text style={styles.trustHeaderTitle}>WHY SHOP WITH EAGLETECH</Text>
+          <View style={styles.trustGrid}>
+            <View style={styles.trustItem}>
+              <View style={styles.trustIconContainer}>
+                <Truck size={17} color="#2563eb" />
+              </View>
+              <View style={styles.trustTextCol}>
+                <Text style={styles.trustTitle}>Nationwide Delivery</Text>
+                <Text style={styles.trustSubtitle}>Fast, insured dispatch across Nigeria</Text>
+              </View>
+            </View>
+
+            <View style={styles.trustItem}>
+              <View style={styles.trustIconContainer}>
+                <ShieldCheck size={17} color="#2563eb" />
+              </View>
+              <View style={styles.trustTextCol}>
+                <Text style={styles.trustTitle}>1-Year Warranty</Text>
+                <Text style={styles.trustSubtitle}>100% verified authentic tech</Text>
+              </View>
+            </View>
+
+            <View style={styles.trustItem}>
+              <View style={styles.trustIconContainer}>
+                <Lock size={17} color="#2563eb" />
+              </View>
+              <View style={styles.trustTextCol}>
+                <Text style={styles.trustTitle}>Secure Checkout</Text>
+                <Text style={styles.trustSubtitle}>Paystack 256-bit SSL encrypted</Text>
+              </View>
+            </View>
+
+            <View style={styles.trustItem}>
+              <View style={styles.trustIconContainer}>
+                <RotateCcw size={17} color="#2563eb" />
+              </View>
+              <View style={styles.trustTextCol}>
+                <Text style={styles.trustTitle}>7-Day Returns</Text>
+                <Text style={styles.trustSubtitle}>Hassle-free replacement policy</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* 2. WhatsApp Tech Concierge / "Need Help Choosing?" CTA Card */}
+        <View style={styles.conciergeCard}>
+          <View style={styles.conciergeBadge}>
+            <Sparkles size={11} color="#38bdf8" />
+            <Text style={styles.conciergeBadgeText}>EXPERT TECH SUPPORT</Text>
+          </View>
+          <Text style={styles.conciergeTitle}>Need help picking the right gadget?</Text>
+          <Text style={styles.conciergeSubtitle}>
+            Chat directly with an EagleTech specialist on WhatsApp for custom specs, device recommendations, and instant quotes.
+          </Text>
+          <TouchableOpacity
+            style={styles.whatsAppBtn}
+            activeOpacity={0.85}
+            onPress={handleWhatsAppSupport}
+          >
+            <MessageCircle size={18} color="#ffffff" />
+            <Text style={styles.whatsAppBtnText}>Chat on WhatsApp</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 3. Catalog Completion Milestone + Back to Top */}
+        <View style={styles.milestoneSection}>
+          <View style={styles.dividerLine} />
+          <View style={styles.milestonePill}>
+            <Text style={styles.milestoneText}>
+              ✦ You've viewed all {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.backToTopBtn}
+            activeOpacity={0.8}
+            onPress={handleBackToTop}
+          >
+            <ArrowUp size={14} color="#0f172a" />
+            <Text style={styles.backToTopText}>Back to Top</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 4. Brand Footer & Version */}
+        <View style={styles.brandFooter}>
+          <View style={styles.footerLogoContainer}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.footerLogoImage}
+              contentFit="cover"
+            />
+          </View>
+          <Text style={styles.footerBrandName}>
+            EAGLE<Text style={styles.footerBrandHighlight}>TECH</Text>
+          </Text>
+          <Text style={styles.footerTagline}>Hardware • Networking • Enterprise IT</Text>
+          <Text style={styles.footerCopyright}>
+            © {new Date().getFullYear()} EagleTech Store • v1.0.0
+          </Text>
+          <Text style={styles.footerLocation}>Lagos, Nigeria • All Rights Reserved</Text>
+        </View>
+      </View>
+    );
   };
 
   const renderProduct = ({ item }: { item: any }) => {
@@ -185,6 +333,7 @@ export default function ShopScreen() {
   return (
     <View style={styles.container}>
       <FlashList
+        ref={listRef}
         data={filteredProducts}
         extraData={`${selectedCategory}-${sortBy}-${filteredProducts.length}`}
         keyExtractor={(item) => item.id}
@@ -192,6 +341,7 @@ export default function ShopScreen() {
         numColumns={2}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        ListFooterComponent={renderListFooter}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -635,5 +785,237 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  /* Professional Footer Styles */
+  footerWrapper: {
+    marginTop: 24,
+    paddingHorizontal: 4,
+    paddingBottom: 40,
+  },
+  trustCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 16,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  trustHeaderTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 1,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  trustGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  trustItem: {
+    width: '48.5%',
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    marginBottom: 10,
+  },
+  trustIconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  trustTextCol: {
+    flex: 1,
+  },
+  trustTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  trustSubtitle: {
+    fontSize: 10,
+    color: '#64748b',
+    lineHeight: 14,
+  },
+
+  /* WhatsApp Concierge Card */
+  conciergeCard: {
+    backgroundColor: '#0f172a',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  conciergeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+  },
+  conciergeBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#38bdf8',
+    letterSpacing: 0.8,
+    marginLeft: 5,
+  },
+  conciergeTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  conciergeSubtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  whatsAppBtn: {
+    backgroundColor: '#22c55e',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  whatsAppBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+
+  /* Milestone Section */
+  milestoneSection: {
+    alignItems: 'center',
+    marginBottom: 26,
+    position: 'relative',
+  },
+  dividerLine: {
+    position: 'absolute',
+    top: 14,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  milestonePill: {
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  milestoneText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  backToTopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  backToTopText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginLeft: 6,
+  },
+
+  /* Brand Footer & Version */
+  brandFooter: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  footerLogoContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#0f172a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  footerLogoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  footerBrandName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: 0.5,
+  },
+  footerBrandHighlight: {
+    color: '#2563eb',
+  },
+  footerTagline: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  footerCopyright: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginBottom: 2,
+  },
+  footerLocation: {
+    fontSize: 10,
+    color: '#cbd5e1',
   },
 });
