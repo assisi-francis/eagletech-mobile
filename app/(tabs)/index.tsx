@@ -130,17 +130,17 @@ export default function ShopScreen() {
     const message = encodeURIComponent(
       'Hello EagleTech! I am browsing the mobile app and would like to inquire about gadget recommendations and availability.'
     );
-    const whatsappUrl = `https://wa.me/2348000000000?text=${message}`;
+    const whatsappUrl = `https://wa.me/2347067774818?text=${message}`;
 
     try {
       const supported = await Linking.canOpenURL(whatsappUrl);
       if (supported) {
         await Linking.openURL(whatsappUrl);
       } else {
-        await Linking.openURL(`https://wa.me/?text=${message}`);
+        await Linking.openURL(`https://wa.me/2347067774818?text=${message}`);
       }
     } catch (e) {
-      Linking.openURL(`https://wa.me/?text=${message}`).catch(() => {});
+      Linking.openURL(`https://wa.me/2347067774818?text=${message}`).catch(() => {});
     }
   };
 
