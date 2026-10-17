@@ -27,10 +27,15 @@ import {
   Tag,
   X,
   CheckCircle2,
+  MapPin,
+  Home,
+  Briefcase,
+  PlusCircle,
 } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { usePaystack } from 'react-native-paystack-webview';
 import { useRouter } from 'expo-router';
+import { useAddressStore } from '../../store/useAddressStore';
 
 interface Coupon {
   code: string;
@@ -85,6 +90,15 @@ export default function CartScreen() {
     state: '',
   });
 
+  const { addresses, selectedAddressId, setSelectedAddress, addAddress, getActiveAddress } = useAddressStore();
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+  const [newAddrLabel, setNewAddrLabel] = useState('Home');
+  const [newAddrFullName, setNewAddrFullName] = useState('');
+  const [newAddrPhone, setNewAddrPhone] = useState('');
+  const [newAddrStreet, setNewAddrStreet] = useState('');
+  const [newAddrCity, setNewAddrCity] = useState('Lagos');
+  const [newAddrState, setNewAddrState] = useState('Lagos State');
+
   useEffect(() => {
     syncCartFromSupabase();
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -93,11 +107,69 @@ export default function CartScreen() {
         setFormData((prev) => ({
           ...prev,
           email: session.user.email || '',
-          fullName: session.user.user_metadata?.full_name || '',
+          fullName: session.user.user_metadata?.full_name || prev.fullName,
         }));
       }
     });
-  }, []);
+
+    const active = getActiveAddress();
+    if (active) {
+      setFormData((prev) => ({
+        ...prev,
+        fullName: prev.fullName || active.fullName,
+        phone: prev.phone || active.phoneNumber,
+        address: prev.address || active.street,
+        city: prev.city || active.city,
+        state: prev.state || active.state,
+      }));
+    }
+  }, [selectedAddressId]);
+
+  const handleSelectAddress = (addr: any) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    setSelectedAddress(addr.id);
+    setFormData((prev) => ({
+      ...prev,
+      fullName: addr.fullName,
+      phone: addr.phoneNumber,
+      address: addr.street,
+      city: addr.city,
+      state: addr.state,
+    }));
+  };
+
+  const handleSaveNewAddress = () => {
+    if (!newAddrFullName.trim() || !newAddrPhone.trim() || !newAddrStreet.trim()) {
+      Alert.alert('Required Fields', 'Please fill in Full Name, Phone, and Street Address.');
+      return;
+    }
+    addAddress({
+      label: newAddrLabel,
+      fullName: newAddrFullName.trim(),
+      phoneNumber: newAddrPhone.trim(),
+      street: newAddrStreet.trim(),
+      city: newAddrCity.trim(),
+      state: newAddrState.trim(),
+      isDefault: false,
+    });
+    setFormData((prev) => ({
+      ...prev,
+      fullName: newAddrFullName.trim(),
+      phone: newAddrPhone.trim(),
+      address: newAddrStreet.trim(),
+      city: newAddrCity.trim(),
+      state: newAddrState.trim(),
+    }));
+    setShowAddAddressModal(false);
+    setNewAddrFullName('');
+    setNewAddrPhone('');
+    setNewAddrStreet('');
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {}
+  };
 
   const onRefresh = async () => {
     try {
@@ -514,7 +586,64 @@ export default function CartScreen() {
               </View>
             </View>
 
-            <Text style={styles.formTitle}>Shipping Details</Text>
+            {/* Saved Delivery Addresses Section */}
+            <View style={styles.addressSectionHeader}>
+              <View style={styles.addressSectionTitleRow}>
+                <MapPin size={15} color="#2563eb" />
+                <Text style={styles.addressSectionTitle}>SAVED DELIVERY ADDRESSES</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowAddAddressModal(true)}
+                style={styles.addNewAddrBtn}
+              >
+                <PlusCircle size={13} color="#2563eb" style={{ marginRight: 4 }} />
+                <Text style={styles.addNewAddrText}>+ Add New</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.savedAddressesScroll}
+            >
+              {addresses.map((addr) => {
+                const isSelected = selectedAddressId === addr.id;
+                return (
+                  <TouchableOpacity
+                    key={addr.id}
+                    style={[
+                      styles.addressCard,
+                      isSelected && styles.addressCardSelected,
+                    ]}
+                    onPress={() => handleSelectAddress(addr)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.addressCardTop}>
+                      <View style={styles.addressLabelBadge}>
+                        {addr.label.toLowerCase().includes('work') || addr.label.toLowerCase().includes('office') ? (
+                          <Briefcase size={11} color="#2563eb" style={{ marginRight: 4 }} />
+                        ) : (
+                          <Home size={11} color="#2563eb" style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={styles.addressLabelText}>{addr.label}</Text>
+                      </View>
+                      {isSelected && (
+                        <CheckCircle2 size={15} color="#2563eb" fill="#eff6ff" />
+                      )}
+                    </View>
+                    <Text style={styles.addressCardName} numberOfLines={1}>
+                      {addr.fullName}
+                    </Text>
+                    <Text style={styles.addressCardStreet} numberOfLines={2}>
+                      {addr.street}, {addr.city}
+                    </Text>
+                    <Text style={styles.addressCardPhone}>{addr.phoneNumber}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.recipientInfoTitle}>Recipient & Delivery Details</Text>
             <TextInput
               style={styles.input}
               placeholder="Full Name"
@@ -574,6 +703,111 @@ export default function CartScreen() {
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Add New Address Modal */}
+      <Modal
+        visible={showAddAddressModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAddAddressModal(false)}
+      >
+        <View style={styles.addrModalOverlay}>
+          <View style={styles.addrModalContent}>
+            <View style={styles.addrModalHeader}>
+              <Text style={styles.addrModalTitle}>Add Delivery Address</Text>
+              <TouchableOpacity
+                onPress={() => setShowAddAddressModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Label Selector: Home / Work / Other */}
+            <Text style={styles.addrInputLabel}>Address Label</Text>
+            <View style={styles.labelPickerRow}>
+              {['Home', 'Work / Office', 'Other'].map((lbl) => (
+                <TouchableOpacity
+                  key={lbl}
+                  style={[
+                    styles.labelPickerPill,
+                    newAddrLabel === lbl && styles.labelPickerPillActive,
+                  ]}
+                  onPress={() => setNewAddrLabel(lbl)}
+                >
+                  <Text
+                    style={[
+                      styles.labelPickerPillText,
+                      newAddrLabel === lbl && styles.labelPickerPillTextActive,
+                    ]}
+                  >
+                    {lbl}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.addrInputLabel}>Full Name</Text>
+            <TextInput
+              style={styles.addrInput}
+              placeholder="e.g. John Adeleke"
+              placeholderTextColor="#94a3b8"
+              value={newAddrFullName}
+              onChangeText={setNewAddrFullName}
+            />
+
+            <Text style={styles.addrInputLabel}>Phone Number</Text>
+            <TextInput
+              style={styles.addrInput}
+              placeholder="e.g. +234 802 123 4567"
+              placeholderTextColor="#94a3b8"
+              value={newAddrPhone}
+              onChangeText={setNewAddrPhone}
+              keyboardType="phone-pad"
+            />
+
+            <Text style={styles.addrInputLabel}>Street Address</Text>
+            <TextInput
+              style={styles.addrInput}
+              placeholder="Plot / Street / Building details"
+              placeholderTextColor="#94a3b8"
+              value={newAddrStreet}
+              onChangeText={setNewAddrStreet}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addrInputLabel}>City</Text>
+                <TextInput
+                  style={styles.addrInput}
+                  placeholder="e.g. Ikeja"
+                  placeholderTextColor="#94a3b8"
+                  value={newAddrCity}
+                  onChangeText={setNewAddrCity}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addrInputLabel}>State</Text>
+                <TextInput
+                  style={styles.addrInput}
+                  placeholder="e.g. Lagos State"
+                  placeholderTextColor="#94a3b8"
+                  value={newAddrState}
+                  onChangeText={setNewAddrState}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.saveAddrBtn}
+              onPress={handleSaveNewAddress}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.saveAddrBtnText}>Save & Select Address</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -912,4 +1146,134 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   payBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+
+  /* Address Section & Cards */
+  addressSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  addressSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  addressSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: 0.5,
+  },
+  addNewAddrBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+  },
+  addNewAddrText: { fontSize: 11, fontWeight: '700', color: '#2563eb' },
+  savedAddressesScroll: {
+    gap: 10,
+    paddingBottom: 14,
+  },
+  addressCard: {
+    width: 200,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+  },
+  addressCardSelected: {
+    borderColor: '#2563eb',
+    backgroundColor: '#f0f7ff',
+  },
+  addressCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  addressLabelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  addressLabelText: { fontSize: 10, fontWeight: '700', color: '#0f172a' },
+  addressCardName: { fontSize: 13, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
+  addressCardStreet: { fontSize: 11, color: '#64748b', lineHeight: 15, marginBottom: 4 },
+  addressCardPhone: { fontSize: 11, fontWeight: '600', color: '#2563eb' },
+  recipientInfoTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+
+  /* Add Address Modal */
+  addrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  addrModalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  addrModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  addrModalTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
+  addrInputLabel: { fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 5 },
+  labelPickerRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  labelPickerPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  labelPickerPillActive: { backgroundColor: '#0f172a', borderColor: '#0f172a' },
+  labelPickerPillText: { fontSize: 12, fontWeight: '600', color: '#475569' },
+  labelPickerPillTextActive: { color: '#ffffff' },
+  addrInput: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0f172a',
+    marginBottom: 12,
+  },
+  saveAddrBtn: {
+    backgroundColor: '#2563eb',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  saveAddrBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
 });

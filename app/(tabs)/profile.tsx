@@ -24,8 +24,12 @@ import {
   Heart,
   Truck,
   ShieldCheck,
+  MapPin,
+  Home,
+  Briefcase,
 } from 'lucide-react-native';
 import { useWishlistStore } from '../../store/useWishlistStore';
+import { useAddressStore } from '../../store/useAddressStore';
 import {
   isBiometricSupported,
   isBiometricEnabled,
@@ -105,6 +109,7 @@ export default function ProfileScreen() {
   const [biometricsActive, setBiometricsActive] = useState(false);
 
   const router = useRouter();
+  const { addresses, setDefaultAddress } = useAddressStore();
 
   useEffect(() => {
     fetchData();
@@ -411,6 +416,45 @@ export default function ProfileScreen() {
         </ScrollView>
       )}
 
+      {/* Saved Delivery Addresses Section */}
+      <View style={[styles.sectionHeader, { marginTop: 28 }]}>
+        <MapPin color="#2563eb" size={20} />
+        <Text style={styles.sectionTitle}>Saved Addresses ({addresses.length})</Text>
+      </View>
+
+      <View style={styles.addressListContainer}>
+        {addresses.map((addr) => (
+          <View key={addr.id} style={styles.profileAddressCard}>
+            <View style={styles.profileAddressHeader}>
+              <View style={styles.profileAddressLabelBadge}>
+                {addr.label.toLowerCase().includes('work') || addr.label.toLowerCase().includes('office') ? (
+                  <Briefcase size={12} color="#2563eb" style={{ marginRight: 4 }} />
+                ) : (
+                  <Home size={12} color="#2563eb" style={{ marginRight: 4 }} />
+                )}
+                <Text style={styles.profileAddressLabelText}>{addr.label}</Text>
+              </View>
+              {addr.isDefault ? (
+                <View style={styles.defaultBadge}>
+                  <Text style={styles.defaultBadgeText}>DEFAULT</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setDefaultAddress(addr.id)}
+                  style={styles.setDefaultBtn}
+                >
+                  <Text style={styles.setDefaultText}>Set Default</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={styles.profileAddressName}>{addr.fullName}</Text>
+            <Text style={styles.profileAddressStreet}>{addr.street}, {addr.city}, {addr.state}</Text>
+            <Text style={styles.profileAddressPhone}>{addr.phoneNumber}</Text>
+          </View>
+        ))}
+      </View>
+
       {/* Sign Out */}
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
         <LogOut color="#ef4444" size={18} style={{ marginRight: 8 }} />
@@ -671,6 +715,55 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#0f172a', marginTop: 12, marginBottom: 4 },
   emptySubtitle: { fontSize: 12, color: '#64748b', textAlign: 'center' },
+
+  // Addresses
+  addressListContainer: {
+    gap: 12,
+  },
+  profileAddressCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  profileAddressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profileAddressLabelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  profileAddressLabelText: { fontSize: 11, fontWeight: '700', color: '#2563eb' },
+  defaultBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  defaultBadgeText: { fontSize: 9, fontWeight: '800', color: '#ffffff' },
+  setDefaultBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
+  },
+  setDefaultText: { fontSize: 11, fontWeight: '600', color: '#64748b' },
+  profileAddressName: { fontSize: 14, fontWeight: '700', color: '#0f172a', marginBottom: 2 },
+  profileAddressStreet: { fontSize: 12, color: '#64748b', lineHeight: 16, marginBottom: 4 },
+  profileAddressPhone: { fontSize: 12, fontWeight: '600', color: '#2563eb' },
 
   // Sign out
   signOutBtn: {

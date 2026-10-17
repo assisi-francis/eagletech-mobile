@@ -11,6 +11,29 @@ export interface Product {
   subcategory?: string;
   brand?: string;
   created_at?: string;
+  rating?: number;
+  reviews_count?: number;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userName: string;
+  rating: number;
+  date: string;
+  comment: string;
+  verified: boolean;
+}
+
+export interface SavedAddress {
+  id: string;
+  label: string; // 'Home' | 'Office' | 'Warehouse'
+  fullName: string;
+  phoneNumber: string;
+  street: string;
+  city: string;
+  state: string;
+  isDefault: boolean;
 }
 
 export interface CartItem extends Product {

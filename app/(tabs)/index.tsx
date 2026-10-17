@@ -14,6 +14,7 @@ import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ShoppingCart,
   Search,
@@ -28,6 +29,9 @@ import {
   RotateCcw,
   MessageCircle,
   ChevronRight,
+  Star,
+  Clock,
+  History,
 } from 'lucide-react-native';
 import { useCartStore } from '../../store/useCartStore';
 import { useProductStore } from '../../store/useProductStore';
@@ -35,6 +39,9 @@ import { ProductSkeleton } from '../../components/ProductSkeleton';
 import { Toast } from '../../components/Toast';
 
 type SortOption = 'featured' | 'price-asc' | 'price-desc';
+
+const RECENT_KEY = '@eagletech_recent_searches';
+const TRENDING_SEARCHES = ['Starlink', 'MacBook Pro', 'Dell XPS', 'Crucial 2TB SSD', 'Pixel 8', 'Type-C Hub'];
 
 const HERO_BANNERS = [
   {
@@ -84,7 +91,44 @@ export default function ShopScreen() {
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const heroScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(RECENT_KEY).then((data) => {
+      if (data) {
+        try {
+          setRecentSearches(JSON.parse(data));
+        } catch (e) {}
+      }
+    });
+  }, []);
+
+  const saveRecentSearch = async (term: string) => {
+    const clean = term.trim();
+    if (!clean) return;
+    const updated = [clean, ...recentSearches.filter((s) => s.toLowerCase() !== clean.toLowerCase())].slice(0, 5);
+    setRecentSearches(updated);
+    AsyncStorage.setItem(RECENT_KEY, JSON.stringify(updated)).catch(() => {});
+  };
+
+  const handleSelectSearch = (term: string) => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    setSearchQuery(term);
+    setIsSearchFocused(false);
+    saveRecentSearch(term);
+  };
+
+  const handleClearRecentSearches = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+    setRecentSearches([]);
+    await AsyncStorage.removeItem(RECENT_KEY).catch(() => {});
+  };
 
   useEffect(() => {
     fetchProducts();
@@ -354,6 +398,12 @@ export default function ShopScreen() {
               {item.title || item.name}
             </Text>
 
+            <View style={styles.ratingRow}>
+              <Star size={11} color="#f59e0b" fill="#f59e0b" />
+              <Text style={styles.ratingScore}>{Number(item.rating || 4.9).toFixed(1)}</Text>
+              <Text style={styles.ratingCount}>({item.reviews_count || 24})</Text>
+            </View>
+
             <View style={styles.footerRow}>
               <Text style={styles.price}>₦{Number(item.price || 0).toLocaleString()}</Text>
 
@@ -394,6 +444,9 @@ export default function ShopScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderProduct}
         numColumns={2}
+        estimatedItemSize={295}
+        removeClippedSubviews={true}
+        drawDistance={Dimensions.get('window').height * 1.5}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={renderListFooter}
@@ -416,12 +469,22 @@ export default function ShopScreen() {
                 placeholderTextColor="#94a3b8"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onSubmitEditing={() => {
+                  if (searchQuery.trim()) {
+                    saveRecentSearch(searchQuery.trim());
+                    setIsSearchFocused(false);
+                  }
+                }}
                 returnKeyType="search"
                 clearButtonMode="never"
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
+                  onPress={() => {
+                    setSearchQuery('');
+                    setIsSearchFocused(false);
+                  }}
                   style={styles.clearBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
@@ -429,6 +492,60 @@ export default function ShopScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Trending & Recent Search Overlay */}
+            {isSearchFocused && !searchQuery.trim() && (
+              <View style={styles.searchOverlayBox}>
+                <View style={styles.searchOverlayHeader}>
+                  <View style={styles.searchOverlayTitleRow}>
+                    <Sparkles size={13} color="#2563eb" />
+                    <Text style={styles.searchOverlayTitle}>TRENDING SEARCHES</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setIsSearchFocused(false)}>
+                    <Text style={styles.searchOverlayClose}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.trendingChipsRow}>
+                  {TRENDING_SEARCHES.map((query) => (
+                    <TouchableOpacity
+                      key={query}
+                      style={styles.trendingChip}
+                      onPress={() => handleSelectSearch(query)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.trendingChipText}>{query}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {recentSearches.length > 0 && (
+                  <View style={styles.recentSection}>
+                    <View style={styles.recentHeaderRow}>
+                      <View style={styles.searchOverlayTitleRow}>
+                        <Clock size={12} color="#64748b" />
+                        <Text style={styles.recentTitle}>RECENT SEARCHES</Text>
+                      </View>
+                      <TouchableOpacity onPress={handleClearRecentSearches}>
+                        <Text style={styles.clearRecentText}>Clear</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.recentChipsRow}>
+                      {recentSearches.map((item) => (
+                        <TouchableOpacity
+                          key={item}
+                          style={styles.recentChip}
+                          onPress={() => handleSelectSearch(item)}
+                          activeOpacity={0.7}
+                        >
+                          <History size={11} color="#64748b" style={{ marginRight: 4 }} />
+                          <Text style={styles.recentChipText}>{item}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Hero Promo Banner Carousel */}
             <View style={styles.heroCarouselContainer}>
@@ -712,6 +829,119 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+  },
+  searchOverlayBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  searchOverlayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  searchOverlayTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  searchOverlayTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2563eb',
+    letterSpacing: 0.5,
+  },
+  searchOverlayClose: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  trendingChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  trendingChip: {
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  trendingChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1d4ed8',
+  },
+  recentSection: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 10,
+  },
+  recentHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recentTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+    letterSpacing: 0.5,
+  },
+  clearRecentText: {
+    fontSize: 11,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  recentChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  recentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  recentChipText: {
+    fontSize: 12,
+    color: '#334155',
+    fontWeight: '500',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 3,
+  },
+  ratingScore: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  ratingCount: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '500',
   },
   searchIcon: {
     marginRight: 10,
